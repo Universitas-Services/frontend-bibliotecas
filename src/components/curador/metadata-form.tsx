@@ -1,10 +1,3 @@
-'use client'
-
-import * as React from 'react'
-import { Link2, FileText, Plus } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -12,226 +5,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
-import { ClassificationTags } from './classification-tags'
-import { useUploadStore } from '@/lib/stores/upload-store'
-import { toast } from 'sonner'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 
 export function MetadataForm() {
-  const [showConfirm, setShowConfirm] = React.useState(false)
-  const [isPublishing, setIsPublishing] = React.useState(false)
-
-  const {
-    title,
-    setTitle,
-    category,
-    setCategory,
-    linkedCourse,
-    setLinkedCourse,
-    abstract,
-    setAbstract,
-    classificationTags,
-    addTag,
-    removeTag,
-    keywords,
-    setKeywords,
-    file,
-    isImageOnly,
-    reset,
-  } = useUploadStore()
-
-  const validateAndConfirm = () => {
-    if (!file) {
-      toast.error('Archivo faltante', {
-        description: 'Por favor, sube un documento antes de publicar.',
-      })
-      return
-    }
-    if (!title) {
-      toast.error('Título requerido', {
-        description: 'Por favor, introduce un título para el documento.',
-      })
-      return
-    }
-
-    setShowConfirm(true)
-  }
-
-  const handlePublish = async () => {
-    setIsPublishing(true)
-
-    // Simular una carga al servidor
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    console.log('Publicando documento...', {
-      file,
-      isImageOnly,
-      title,
-      category,
-      linkedCourse,
-      abstract,
-      classificationTags,
-      keywords,
-    })
-
-    toast.success('¡Documento publicado!', {
-      description: `El documento "${title}" ha sido añadido a la biblioteca.`,
-    })
-
-    setIsPublishing(false)
-    setShowConfirm(false)
-    reset()
-  }
-
   return (
-    <div className="space-y-8">
-      <div className="mb-2 flex items-center gap-2">
-        <FileText className="h-5 w-5 text-zinc-500" />
-        <h2 className="text-xl font-bold">Metadatos del Documento</h2>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-[#00315C]">Tipo de norma</label>
+        <Select defaultValue="ley-organica">
+          <SelectTrigger className="h-11 w-full border-gray-300 bg-white">
+            <SelectValue placeholder="Seleccione un tipo..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ley-organica">Ley Orgánica</SelectItem>
+            <SelectItem value="decreto">Decreto</SelectItem>
+            <SelectItem value="resolucion">Resolución</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="space-y-6">
-        {/* Título */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-[#00315C]">Ente emisor</label>
+        <Input placeholder="Ej: Ministerio de Justicia" className="h-11 border-gray-300 bg-white" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="title" className="text-zinc-600">
-            Título del Documento *
-          </Label>
-          <Input
-            id="title"
-            placeholder="Introduce el título del documento"
-            className="h-12 border-zinc-200 focus-visible:ring-1"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+          <label className="text-sm font-medium text-[#00315C]">Publicación</label>
+          <Input placeholder="mm/dd" className="h-11 border-gray-300 bg-white text-center" />
         </div>
-
-        {/* Categoría y Link */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="category" className="text-zinc-600">
-              Categoría Principal
-            </Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger id="category" className="h-12 border-zinc-200">
-                <SelectValue placeholder="Seleccionar categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fiscal">Control Fiscal</SelectItem>
-                <SelectItem value="contrataciones">Contrataciones Públicas</SelectItem>
-                <SelectItem value="ordenanzas">Ordenanzas Municipales</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="course" className="text-zinc-600">
-              Vincular a Curso
-            </Label>
-            <div className="relative">
-              <Input
-                id="course"
-                placeholder="Vincular a curso"
-                className="h-12 border-zinc-200 pr-10 pl-4"
-                value={linkedCourse}
-                onChange={(e) => setLinkedCourse(e.target.value)}
-              />
-              <Link2 className="absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Resumen */}
         <div className="space-y-2">
-          <Label htmlFor="abstract" className="text-zinc-600">
-            Resumen o Abstract
-          </Label>
-          <Textarea
-            id="abstract"
-            placeholder="Escribe un breve resumen del contenido del documento..."
-            className="min-h-[150px] resize-none border-zinc-200 focus-visible:ring-1"
-            value={abstract}
-            onChange={(e) => setAbstract(e.target.value)}
-          />
-        </div>
-
-        {/* Etiquetas y Palabras Clave */}
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-          <div className="space-y-3">
-            <Label className="font-medium text-zinc-600">Etiquetas de Clasificación</Label>
-            <ClassificationTags
-              tags={classificationTags}
-              onAddTag={addTag}
-              onRemoveTag={removeTag}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Label htmlFor="keywords" className="font-medium text-zinc-600">
-              Palabras Clave (Búsqueda)
-            </Label>
-            <Textarea
-              id="keywords"
-              placeholder="Ej: usufructo, prescripción, dolo... Separate con comas."
-              className="h-full min-h-[100px] resize-none border-zinc-200"
-              value={keywords}
-              onChange={(e) => setKeywords(e.target.value)}
-            />
-          </div>
+          <label className="text-sm font-medium text-[#00315C]">Nº Gaceta</label>
+          <Input placeholder="Nº 45/24" className="h-11 border-gray-300 bg-white text-center" />
         </div>
       </div>
-
-      <div className="flex items-center justify-end gap-4 border-t border-zinc-100 pt-6">
-        <Button
-          variant="outline"
-          className="h-11 border-zinc-300 px-8 font-bold"
-          onClick={() => {
-            reset()
-            toast.info('Formulario limpiado')
-          }}
-        >
-          Limpiar Formulario
-        </Button>
-        <Button
-          className="h-11 bg-black px-8 font-bold text-white hover:bg-zinc-800"
-          onClick={validateAndConfirm}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Publicar en Biblioteca
-        </Button>
-      </div>
-
-      {/* Modal de Confirmación */}
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>¿Publicar en Biblioteca?</DialogTitle>
-            <DialogDescription>
-              Esta acción añadirá el documento &quot;{title}&quot; al acervo documental. Asegúrate
-              de que los metadatos sean correctos.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowConfirm(false)} disabled={isPublishing}>
-              Cancelar
-            </Button>
-            <Button
-              className="bg-black text-white hover:bg-zinc-800"
-              onClick={handlePublish}
-              disabled={isPublishing}
-            >
-              {isPublishing ? 'Publicando...' : 'Confirmar y Publicar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
