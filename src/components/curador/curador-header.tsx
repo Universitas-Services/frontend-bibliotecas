@@ -32,7 +32,11 @@ export function CuradorHeader() {
           >
             Guardar borrador
           </Button>
-          <Button className="h-10 bg-[#003D6F] px-6 font-medium text-white shadow-sm hover:bg-[#00315C]">
+          <Button
+            type="submit"
+            form="nueva-carga-form"
+            className="h-10 bg-[#003D6F] px-6 font-medium text-white shadow-sm hover:bg-[#00315C]"
+          >
             Publicar documento
           </Button>
         </div>

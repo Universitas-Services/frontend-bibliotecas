@@ -8,6 +8,7 @@ export function SeoSection() {
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">Resumen descriptivo</label>
         <Textarea
+          name="resumen"
           placeholder="Redacte un resumen ejecutivo para fines de indexación y búsqueda rápida..."
           className="min-h-[120px] resize-none border-gray-300 bg-white p-4"
         />

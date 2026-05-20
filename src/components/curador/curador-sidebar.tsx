@@ -27,8 +27,8 @@ const navItems = [
     icon: LayoutGrid,
   },
   {
-    title: 'Gestión de documentos',
-    url: '/curador/documentos',
+    title: 'Gestión Documental',
+    url: '/curador/gestion-documental',
     icon: Folder,
   },
   {
@@ -59,11 +59,11 @@ export function CuradorSidebar() {
         <div className="mt-2">
           <Button
             asChild
-            className="h-10 w-full justify-start gap-2 rounded-md bg-[#003D6F] px-4 text-white shadow-none hover:bg-[#00315C]"
+            className="h-10 w-full justify-start gap-2 rounded-md bg-[#003D6F] px-3 text-white shadow-none hover:bg-[#00315C]"
           >
             <Link href="/curador/nueva-carga">
-              <Plus className="h-4 w-4" />
-              <span className="text-sm font-medium">Cargar nuevo documento</span>
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="truncate text-[12px] font-medium">Cargar nuevo documento</span>
             </Link>
           </Button>
         </div>
@@ -77,7 +77,7 @@ export function CuradorSidebar() {
                 // Determine active state, making /curador/nueva-carga active for "Gestión de documentos" just as an example if needed, or keeping it strict.
                 const isActive =
                   pathname === item.url ||
-                  (item.url === '/curador/documentos' && pathname.includes('nueva-carga'))
+                  (item.url === '/curador/gestion-documental' && pathname.includes('nueva-carga'))
 
                 return (
                   <SidebarMenuItem key={item.title}>

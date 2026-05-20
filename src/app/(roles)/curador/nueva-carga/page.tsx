@@ -1,15 +1,21 @@
 import { Card } from '@/components/ui/card'
-import { UploadZone } from '@/components/curador/upload-zone'
-import { MetadataForm } from '@/components/curador/metadata-form'
-import { LegalIdentification } from '@/components/curador/legal-identification'
-import { TaxonomySection } from '@/components/curador/taxonomy-section'
-import { MatricesSection } from '@/components/curador/matrices-section'
-import { SeoSection } from '@/components/curador/seo-section'
-import { ReformAlert } from '@/components/curador/reform-alert'
+import { UploadZone } from '@/components/curador/nueva-carga/upload-zone'
+import { MetadataForm } from '@/components/curador/nueva-carga/metadata-form'
+import { LegalIdentification } from '@/components/curador/nueva-carga/legal-identification'
+import { TaxonomySection } from '@/components/curador/nueva-carga/taxonomy-section'
+import { MatricesSection } from '@/components/curador/nueva-carga/matrices-section'
+import { SeoSection } from '@/components/curador/nueva-carga/seo-section'
+import { ReformAlert } from '@/components/curador/nueva-carga/reform-alert'
+
+import { uploadDocumentAction } from '@/app/actions/documents'
 
 export default function NuevaCargaPage() {
   return (
-    <div className="min-h-full bg-[#F8FAFC] p-8">
+    <form
+      id="nueva-carga-form"
+      action={uploadDocumentAction}
+      className="min-h-full bg-[#F8FAFC] p-8"
+    >
       <div className="mx-auto max-w-7xl">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
           {/* Columna Izquierda: Formularios y Carga */}
@@ -92,6 +98,6 @@ export default function NuevaCargaPage() {
           </div>
         </div>
       </div>
-    </div>
+    </form>
   )
 }
