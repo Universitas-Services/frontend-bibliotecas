@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { FileDown, FileCheck, ClipboardList, FileX, Info, Trash2 } from 'lucide-react'
@@ -112,19 +113,23 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
                 >
                   Ver Comentarios
                 </Button>
-                <Button className="h-9 bg-[#00315C] px-6 text-[13px] font-semibold text-white hover:bg-[#005496]">
-                  Corregir
-                </Button>
+                <Link href={`/curador/correcciones/${doc.id}`}>
+                  <Button className="h-9 bg-[#00315C] px-6 text-[13px] font-semibold text-white hover:bg-[#005496]">
+                    Corregir
+                  </Button>
+                </Link>
               </>
             )}
             {doc.status === 'publicado' && (
               <>
-                <Button
-                  variant="outline"
-                  className="h-9 border-[#C1C7D2] bg-white text-[13px] font-semibold text-[#404551]"
-                >
-                  Detalles
-                </Button>
+                <Link href={`/curador/correcciones/${doc.id}`}>
+                  <Button
+                    variant="outline"
+                    className="h-9 border-[#C1C7D2] bg-white text-[13px] font-semibold text-[#404551]"
+                  >
+                    Detalles
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   size="icon"
@@ -135,12 +140,14 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
               </>
             )}
             {doc.status === 'en-revision' && (
-              <Button
-                variant="outline"
-                className="h-9 border-[#C1C7D2] bg-white text-[13px] font-semibold text-[#005496]"
-              >
-                Ver Estado
-              </Button>
+              <Link href={`/curador/correcciones/${doc.id}`}>
+                <Button
+                  variant="outline"
+                  className="h-9 border-[#C1C7D2] bg-white text-[13px] font-semibold text-[#005496]"
+                >
+                  Ver Estado
+                </Button>
+              </Link>
             )}
             {doc.status === 'rechazado' && (
               <>
@@ -150,12 +157,14 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
                 >
                   Ver Motivo
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-9 border-[#C1C7D2] bg-white text-[13px] font-semibold text-[#404551]"
-                >
-                  Apelar
-                </Button>
+                <Link href={`/curador/correcciones/${doc.id}`}>
+                  <Button
+                    variant="outline"
+                    className="h-9 border-[#C1C7D2] bg-white text-[13px] font-semibold text-[#404551]"
+                  >
+                    Apelar
+                  </Button>
+                </Link>
               </>
             )}
           </div>

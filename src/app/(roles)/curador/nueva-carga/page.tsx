@@ -1,3 +1,5 @@
+'use client'
+
 import { Card } from '@/components/ui/card'
 import { UploadZone } from '@/components/curador/nueva-carga/upload-zone'
 import { MetadataForm } from '@/components/curador/nueva-carga/metadata-form'
@@ -8,14 +10,31 @@ import { SeoSection } from '@/components/curador/nueva-carga/seo-section'
 import { ReformAlert } from '@/components/curador/nueva-carga/reform-alert'
 
 import { uploadDocumentAction } from '@/app/actions/documents'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 export default function NuevaCargaPage() {
+  const router = useRouter()
+
+  const handleSubmit = async (formData: FormData) => {
+    toast.promise(uploadDocumentAction(formData), {
+      loading: 'Subiendo y procesando documento...',
+      success: (response) => {
+        if (response?.error) {
+          throw new Error(response.error)
+        }
+        // Redirigir después de un milisegundo para que el toast verde sea visible un momento
+        setTimeout(() => {
+          router.push('/curador/gestion-documental')
+        }, 1500)
+        return '¡Documento cargado exitosamente!'
+      },
+      error: (err) => err.message || 'Error desconocido al subir el documento',
+    })
+  }
+
   return (
-    <form
-      id="nueva-carga-form"
-      action={uploadDocumentAction}
-      className="min-h-full bg-[#F8FAFC] p-8"
-    >
+    <form id="nueva-carga-form" action={handleSubmit} className="min-h-full bg-[#F8FAFC] p-8">
       <div className="mx-auto max-w-7xl">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
           {/* Columna Izquierda: Formularios y Carga */}
