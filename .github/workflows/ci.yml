@@ -9,6 +9,8 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: https://biblioteca-legal-backend.onrender.com
 
     steps:
     - name: Checkout Repository

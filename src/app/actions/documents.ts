@@ -2,6 +2,8 @@
 
 import { cookies } from 'next/headers'
 
+import { getApiBaseUrl } from '@/lib/api'
+
 export async function uploadDocumentAction(formData: FormData) {
   try {
     const cookieStore = await cookies()
@@ -11,7 +13,7 @@ export async function uploadDocumentAction(formData: FormData) {
       return { error: 'No autorizado. Inicie sesión nuevamente.' }
     }
 
-    const res = await fetch('https://biblioteca-legal-backend.onrender.com/documentos/upload', {
+    const res = await fetch(`${getApiBaseUrl()}/documentos/upload`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -40,7 +42,7 @@ export async function getDocumentsAction() {
       return { success: false, error: 'No autorizado. Inicie sesión nuevamente.' }
     }
 
-    const res = await fetch('https://biblioteca-legal-backend.onrender.com/documentos', {
+    const res = await fetch(`${getApiBaseUrl()}/documentos`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -70,16 +72,13 @@ export async function getPreviewUrlAction(documentId: string) {
       return { success: false, error: 'No autorizado. Inicie sesión nuevamente.' }
     }
 
-    const res = await fetch(
-      `https://biblioteca-legal-backend.onrender.com/documentos/${documentId}/preview`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: 'no-store',
+    const res = await fetch(`${getApiBaseUrl()}/documentos/${documentId}/preview`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
       },
-    )
+      cache: 'no-store',
+    })
 
     const data = await res.json().catch(() => null)
 
@@ -102,16 +101,13 @@ export async function getDocumentByIdAction(documentId: string) {
       return { success: false, error: 'No autorizado. Inicie sesión nuevamente.' }
     }
 
-    const res = await fetch(
-      `https://biblioteca-legal-backend.onrender.com/documentos/${documentId}`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: 'no-store',
+    const res = await fetch(`${getApiBaseUrl()}/documentos/${documentId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
       },
-    )
+      cache: 'no-store',
+    })
 
     const data = await res.json().catch(() => null)
 

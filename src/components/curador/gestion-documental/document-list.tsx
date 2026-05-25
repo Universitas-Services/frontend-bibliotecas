@@ -1,6 +1,7 @@
-import { DocumentCard, DocumentData } from './document-card'
+import { DocumentCard, type DocumentData } from './document-card'
 
 import { getDocumentsAction } from '@/app/actions/documents'
+import { mapBackendStatus } from '@/lib/document-status'
 
 export async function DocumentList() {
   const response = await getDocumentsAction()
@@ -9,16 +10,8 @@ export async function DocumentList() {
 
   if (response.success && Array.isArray(response.data)) {
     documents = response.data.map((doc: Record<string, unknown>) => {
-      // Mapeo de estados del backend a los definidos en el frontend
-      let status: DocumentData['status'] = 'en-revision'
-      const backendStatus = (typeof doc.estado === 'string' ? doc.estado : '').toLowerCase()
+      const backendStatus = typeof doc.estado === 'string' ? doc.estado : ''
 
-      if (backendStatus.includes('rechazado')) status = 'rechazado'
-      else if (backendStatus.includes('devuelto')) status = 'devuelto'
-      else if (backendStatus.includes('publicado') || backendStatus.includes('aprobado'))
-        status = 'publicado'
-
-      // Formateo de fecha segura
       let fecha = 'Sin fecha'
       if (doc.ultimaActualizacion && typeof doc.ultimaActualizacion === 'string') {
         fecha = new Date(doc.ultimaActualizacion).toLocaleDateString('es-ES')
@@ -28,8 +21,8 @@ export async function DocumentList() {
         id: String(doc.id || ''),
         title: String(doc.titulo || 'Documento sin título'),
         subtitle: String(doc.resumen || doc.nombreBreve || 'Sin descripción disponible'),
-        status,
-        revisor: 'No asignado', // Fallback, ya que no viene del backend
+        status: mapBackendStatus(backendStatus),
+        revisor: 'No asignado',
         fecha,
       }
     })

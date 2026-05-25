@@ -1,4 +1,5 @@
 'use client'
+
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -7,17 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DOCUMENT_FILTER_TABS } from '@/lib/document-status'
 import { Filter } from 'lucide-react'
 import { useState } from 'react'
-
-const tabs = [
-  { id: 'todos', label: 'Todos', count: null },
-  { id: 'publicados', label: 'Publicados', count: null },
-  { id: 'en-revision', label: 'En Revisión', count: null },
-  { id: 'devueltos', label: 'Devueltos', count: 12 },
-  { id: 'rechazados', label: 'Rechazados', count: 3 },
-  { id: 'borradores', label: 'Borradores', count: null },
-]
 
 export function DocumentFilters() {
   const [activeTab, setActiveTab] = useState('todos')
@@ -25,7 +18,7 @@ export function DocumentFilters() {
   return (
     <div className="mb-6 flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
       <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-2 xl:pb-0">
-        {tabs.map((tab) => (
+        {DOCUMENT_FILTER_TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -36,21 +29,6 @@ export function DocumentFilters() {
             }`}
           >
             {tab.label}
-            {tab.count !== null && (
-              <span
-                className={`rounded-sm px-1.5 py-0.5 text-[11px] ${
-                  activeTab === tab.id
-                    ? 'bg-white/20 text-white'
-                    : tab.id === 'devueltos'
-                      ? 'bg-[#FEF08A] text-[#D97706]'
-                      : tab.id === 'rechazados'
-                        ? 'bg-[#FEE2E2] text-[#93000A]'
-                        : 'bg-[#E5E7EB] text-[#6B7280]'
-                }`}
-              >
-                {tab.count}
-              </span>
-            )}
           </button>
         ))}
       </div>

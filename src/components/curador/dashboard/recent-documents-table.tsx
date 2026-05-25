@@ -10,44 +10,46 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Search, Filter, Eye, Pencil } from 'lucide-react'
+import { Search, Filter } from 'lucide-react'
 
-const documents = [
+import { DocumentActions } from '@/components/curador/document-actions'
+import { DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
+import type { DocumentStatus } from '@/lib/document-status'
+
+const documents: {
+  id: string
+  title: string
+  rama: string
+  fecha: string
+  status: DocumentStatus
+}[] = [
   {
     id: 'DOC-2023-001',
     title: 'Reforma Código Civil Art. 42',
     rama: 'Derecho Civil',
     fecha: '24/10/2023',
-    status: 'Publicado',
-    statusColor: 'bg-[#DCFCE7] text-[#16A34A]',
-    dotColor: 'bg-[#16A34A]',
+    status: 'publicado',
   },
   {
     id: 'DOC-2023-089',
-    title: 'Sentencia T-123/23 Corte Const.',
+    title: 'Ley de Protección de Datos 2024',
     rama: 'Derecho Laboral',
     fecha: '23/10/2023',
-    status: 'Devuelto',
-    statusColor: 'bg-[#FEE2E2] text-[#93000A]',
-    dotColor: 'bg-[#93000A]',
+    status: 'borrador',
   },
   {
     id: 'DOC-2023-142',
     title: 'Proyecto Ley de Tierras 2024',
     rama: 'Derecho Agrario',
     fecha: '22/10/2023',
-    status: 'En Revisión',
-    statusColor: 'bg-[#D4E4FA] text-[#005496]',
-    dotColor: 'bg-[#005496]',
+    status: 'en-revision',
   },
   {
     id: 'DOC-2023-012',
     title: 'Decreto Presidencial 005-23',
     rama: 'Derecho Público',
     fecha: '21/10/2023',
-    status: 'Rechazado',
-    statusColor: 'bg-[#E5E7EB] text-[#404551]',
-    dotColor: 'bg-[#404551]',
+    status: 'publicado',
   },
 ]
 
@@ -90,42 +92,40 @@ export function RecentDocumentsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documents.map((doc) => (
-              <TableRow
-                key={doc.id}
-                className="border-[#E5E7EB] transition-colors hover:bg-[#FAFAFA]"
-              >
-                <TableCell className="px-6 py-4">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[15px] font-bold text-[#0F1D30]">{doc.title}</span>
-                    <span className="text-[12px] font-bold tracking-wide text-[#6B7280] uppercase">
-                      {doc.id}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="font-medium text-[#404551]">{doc.rama}</TableCell>
-                <TableCell className="font-medium text-[#404551]">{doc.fecha}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={`rounded-full border-transparent px-2.5 py-0.5 font-semibold hover:bg-transparent ${doc.statusColor}`}
-                  >
-                    <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${doc.dotColor}`}></span>
-                    {doc.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="px-6 text-right">
-                  <div className="flex justify-end gap-3 text-[#005496]">
-                    <button className="transition-colors hover:text-[#0F1D30]">
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button className="transition-colors hover:text-[#0F1D30]">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {documents.map((doc) => {
+              const styles = DOCUMENT_STATUS_STYLES[doc.status]
+              return (
+                <TableRow
+                  key={doc.id}
+                  className="border-[#E5E7EB] transition-colors hover:bg-[#FAFAFA]"
+                >
+                  <TableCell className="px-6 py-4">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[15px] font-bold text-[#0F1D30]">{doc.title}</span>
+                      <span className="text-[12px] font-bold tracking-wide text-[#6B7280] uppercase">
+                        {doc.id}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium text-[#404551]">{doc.rama}</TableCell>
+                  <TableCell className="font-medium text-[#404551]">{doc.fecha}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={`rounded-full border-transparent px-2.5 py-0.5 font-semibold hover:bg-transparent ${styles.tableStatusColor}`}
+                    >
+                      <span
+                        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${styles.dotColor}`}
+                      />
+                      {styles.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-6 text-right">
+                    <DocumentActions documentId={doc.id} />
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
         <div className="flex items-center justify-between rounded-b-xl border-t border-[#E5E7EB] bg-[#F9FAFB] px-6 py-4">
