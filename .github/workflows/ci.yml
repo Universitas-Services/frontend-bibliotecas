@@ -10,6 +10,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     env:
+      CI: true
       API_BASE_URL: https://biblioteca-legal-backend.onrender.com
 
     steps:

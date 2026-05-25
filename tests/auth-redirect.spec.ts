@@ -16,9 +16,15 @@ test.describe('Route protection', () => {
       },
     ])
 
-    await page.goto('/login?logout=1')
+    await page.goto('/login?logout=1', { waitUntil: 'domcontentloaded' })
+
     await expect(page).toHaveURL(/\/login/)
+    await expect(page.getByRole('heading', { name: 'Acceso Institucional' })).toBeVisible()
     await expect(page.getByLabel('Email Institucional')).toBeVisible()
+    await expect(page.getByLabel('Contraseña')).toBeVisible()
+
+    const cookies = await context.cookies()
+    expect(cookies.some((c) => c.name === 'access_token')).toBe(false)
 
     await page.goto('/revisor')
     await expect(page).toHaveURL(/\/login/)
