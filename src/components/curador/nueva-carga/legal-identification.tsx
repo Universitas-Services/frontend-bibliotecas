@@ -10,6 +10,7 @@ export function LegalIdentification() {
           <Info className="h-4 w-4 text-gray-400" strokeWidth={2} />
         </label>
         <Input
+          name="titulo"
           placeholder="Escriba el nombre completo del instrumento legal..."
           className="h-11 border-gray-300"
         />
@@ -20,7 +21,11 @@ export function LegalIdentification() {
           Nombre breve / comercial
           <Info className="h-4 w-4 text-gray-400" strokeWidth={2} />
         </label>
-        <Input placeholder="Ej: Ley de Protección de Datos 2024" className="h-11 border-gray-300" />
+        <Input
+          name="nombreBreve"
+          placeholder="Ej: Ley de Protección de Datos 2024"
+          className="h-11 border-gray-300"
+        />
       </div>
     </div>
   )

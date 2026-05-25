@@ -12,7 +12,7 @@ export function MetadataForm() {
     <div className="space-y-6">
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">Tipo de norma</label>
-        <Select defaultValue="ley-organica">
+        <Select name="tipoNorma" defaultValue="ley-organica">
           <SelectTrigger className="h-11 w-full border-gray-300 bg-white">
             <SelectValue placeholder="Seleccione un tipo..." />
           </SelectTrigger>
@@ -26,17 +26,30 @@ export function MetadataForm() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">Ente emisor</label>
-        <Input placeholder="Ej: Ministerio de Justicia" className="h-11 border-gray-300 bg-white" />
+        <Input
+          name="enteEmisor"
+          placeholder="Ej: Ministerio de Justicia"
+          className="h-11 border-gray-300 bg-white"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-[#00315C]">Publicación</label>
-          <Input placeholder="mm/dd" className="h-11 border-gray-300 bg-white text-center" />
+          <Input
+            name="fechaPublicacion"
+            placeholder="mm/dd/yyyy"
+            type="date"
+            className="h-11 border-gray-300 bg-white text-center"
+          />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium text-[#00315C]">Nº Gaceta</label>
-          <Input placeholder="Nº 45/24" className="h-11 border-gray-300 bg-white text-center" />
+          <Input
+            name="numeroGaceta"
+            placeholder="Nº 45/24"
+            className="h-11 border-gray-300 bg-white text-center"
+          />
         </div>
       </div>
     </div>

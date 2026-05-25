@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { loginAction } from '@/app/actions/auth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,8 @@ const initialState = {
 }
 
 export function LoginForm() {
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect')
   const [state, formAction, isPending] = useActionState(loginAction, initialState)
 
   useEffect(() => {
@@ -41,8 +44,12 @@ export function LoginForm() {
         </div>
 
         <form action={formAction} className="space-y-6">
+          {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
           <div className="space-y-2">
-            <label className="text-xs font-semibold tracking-wider text-[#C1C7D2] uppercase">
+            <label
+              htmlFor="email"
+              className="text-xs font-semibold tracking-wider text-[#C1C7D2] uppercase"
+            >
               Email Institucional
             </label>
             <div className="relative">
@@ -51,8 +58,10 @@ export function LoginForm() {
                 strokeWidth={1.5}
               />
               <Input
+                id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 placeholder="usuario@universitas.edu"
                 required
                 className="h-12 border-none bg-[#050810] pl-11 text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-[#005496]"
@@ -61,7 +70,10 @@ export function LoginForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold tracking-wider text-[#C1C7D2] uppercase">
+            <label
+              htmlFor="password"
+              className="text-xs font-semibold tracking-wider text-[#C1C7D2] uppercase"
+            >
               Contraseña
             </label>
             <div className="relative">
@@ -70,8 +82,10 @@ export function LoginForm() {
                 strokeWidth={1.5}
               />
               <Input
+                id="password"
                 name="password"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
                 required
                 className="h-12 border-none bg-[#050810] pl-11 text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-[#005496]"
@@ -88,9 +102,15 @@ export function LoginForm() {
             {!isPending && <ArrowRight className="h-5 w-5" />}
           </Button>
 
-          <div className="mt-6 text-center">
-            <a href="#" className="text-sm text-[#C1C7D2] transition-colors hover:text-white">
+          <div className="mt-6 space-y-2 text-center">
+            <a href="#" className="block text-sm text-[#C1C7D2] transition-colors hover:text-white">
               ¿Olvidaste tu contraseña?
+            </a>
+            <a
+              href="/login?logout=1"
+              className="block text-sm text-[#C1C7D2] transition-colors hover:text-white"
+            >
+              Cerrar sesión e iniciar con otra cuenta
             </a>
           </div>
         </form>
