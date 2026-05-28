@@ -1,5 +1,8 @@
 'use server'
 
+import { cookies } from 'next/headers'
+import { getApiBaseUrl } from '@/lib/api'
+
 import { validateCreateUserInput } from '@/lib/admin-validation'
 import {
   createUser,
@@ -52,18 +55,43 @@ export async function createUserAction(formData: FormData) {
   }
 
   try {
-    const user = createUser({
+    const cookieStore = await cookies()
+    const token = cookieStore.get('access_token')?.value
+
+    if (!token) {
+      return { success: false as const, error: 'No autorizado. Inicie sesión nuevamente.' }
+    }
+
+    const payload = {
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+      role: input.rol,
       nombre: input.nombre.trim(),
       apellido: input.apellido.trim(),
-      email: input.email.trim().toLowerCase(),
-      rol: input.rol,
-      temaPrincipalId: input.rol === 'REVISOR' ? input.temaPrincipalId : undefined,
-      password: input.password,
+      temaIds: input.rol === 'REVISOR' && input.temaPrincipalId ? [input.temaPrincipalId] : [],
+    }
+
+    const res = await fetch(`${getApiBaseUrl()}/users/admin/staff`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
     })
 
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      return {
+        success: false as const,
+        error: data?.message || 'Error al crear el usuario en el servidor.',
+      }
+    }
+
+    const user = await res.json()
     return { success: true as const, data: user }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error al crear el usuario.'
-    return { success: false as const, error: message }
+    console.error('Error creating user:', error)
+    return { success: false as const, error: 'Error de red al crear el usuario.' }
   }
 }
