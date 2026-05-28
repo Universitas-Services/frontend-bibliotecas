@@ -1,10 +1,8 @@
-import { AdminSectionPlaceholder } from '@/components/admin/admin-section-placeholder'
+import { CategoriasPanel } from '@/components/admin/taxonomia/categorias-panel'
+import { getCategoriasAdmin } from '@/app/actions/categorias'
 
-export default function AdminCategoriasPage() {
-  return (
-    <AdminSectionPlaceholder
-      title="Categorías"
-      description="Gestione las categorías de la taxonomía documental de la plataforma."
-    />
-  )
+export default async function AdminCategoriasPage() {
+  const categorias = await getCategoriasAdmin()
+
+  return <CategoriasPanel categorias={categorias} />
 }

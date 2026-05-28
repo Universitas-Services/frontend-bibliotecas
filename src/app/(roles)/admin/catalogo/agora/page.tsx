@@ -1,16 +1,5 @@
-import { listMatrizBAction, uploadMatrizBAction } from '@/app/actions/matrices'
-import { MatrixUploadPanel } from '@/components/admin/catalogo/matrix-upload-panel'
+import { CreateAgoraForm } from '@/components/admin/catalogo/create-agora-form'
 
-export default async function AdminAgoraPage() {
-  const result = await listMatrizBAction()
-  const items = result.success ? result.data : []
-
-  return (
-    <MatrixUploadPanel
-      title="Matriz B — Ágora"
-      description="Suba la matriz de artículos de Ágora. Estos datos alimentan la vinculación documental en el flujo del curador."
-      items={items}
-      uploadAction={uploadMatrizBAction}
-    />
-  )
+export default function AdminAgoraPage() {
+  return <CreateAgoraForm />
 }
