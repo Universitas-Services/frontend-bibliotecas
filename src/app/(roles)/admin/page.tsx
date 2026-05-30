@@ -1,10 +1,5 @@
-import { RolePlaceholder } from '@/components/role-placeholder'
+import { redirect } from 'next/navigation'
 
 export default function AdminPage() {
-  return (
-    <RolePlaceholder
-      title="Panel de Administración"
-      description="Bienvenido al portal de administración. El diseño de este panel se implementará en las próximas fases."
-    />
-  )
+  redirect('/admin/usuarios')
 }
