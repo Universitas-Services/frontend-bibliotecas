@@ -1,122 +1,129 @@
 'use server'
 
-import { cookies } from 'next/headers'
-
 import { getApiBaseUrl } from '@/lib/api'
+import {
+  apiGet,
+  apiPostFormData,
+  getApiErrorMessage,
+  getAuthFailure,
+  getBearerToken,
+  normalizeDocumentsList,
+  type ApiErrorCode,
+} from '@/lib/api-client'
 
 export async function uploadDocumentAction(formData: FormData) {
-  try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
+  const result = await apiPostFormData('/documentos/upload', formData)
 
-    if (!token) {
-      return { error: 'No autorizado. Inicie sesión nuevamente.' }
+  if (!result.success) {
+    return {
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
     }
-
-    const res = await fetch(`${getApiBaseUrl()}/documentos/upload`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    })
-
-    const data = await res.json().catch(() => null)
-
-    if (!res.ok) {
-      return { error: data?.message || 'Error del backend al cargar el documento.' }
-    }
-
-    return { success: true, data }
-  } catch {
-    return { error: 'Error de conexión con el servidor.' }
   }
+
+  return { success: true, data: result.data }
 }
 
-export async function getDocumentsAction() {
-  try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
+export type GetDocumentsResult =
+  | { success: true; data: Record<string, unknown>[]; status: number }
+  | { success: false; error: string; details?: string; status?: number; code?: ApiErrorCode }
 
-    if (!token) {
-      return { success: false, error: 'No autorizado. Inicie sesión nuevamente.' }
+export async function getDocumentsAction(): Promise<GetDocumentsResult> {
+  const result = await apiGet('/documentos')
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
     }
+  }
 
-    const res = await fetch(`${getApiBaseUrl()}/documentos`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: 'no-store',
-    })
-
-    const data = await res.json().catch(() => null)
-
-    if (!res.ok) {
-      console.error('Error al obtener documentos:', res.status, data)
-      return { success: false, error: 'Error al obtener los documentos.' }
-    }
-
-    return { success: true, data }
-  } catch {
-    return { success: false, error: 'Error de conexión.' }
+  return {
+    success: true,
+    data: normalizeDocumentsList(result.data),
+    status: result.status,
   }
 }
 
 export async function getPreviewUrlAction(documentId: string) {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
+    const token = await getBearerToken()
 
     if (!token) {
-      return { success: false, error: 'No autorizado. Inicie sesión nuevamente.' }
+      const failure = await getAuthFailure()
+      return { success: false, error: failure.error }
     }
 
     const res = await fetch(`${getApiBaseUrl()}/documentos/${documentId}/preview`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
       },
       cache: 'no-store',
+      signal: AbortSignal.timeout(120_000),
     })
 
     const data = await res.json().catch(() => null)
 
     if (!res.ok) {
-      return { success: false, error: data?.message || 'Error al obtener la previsualización.' }
+      return {
+        success: false,
+        error: getApiErrorMessage(
+          data,
+          res.status === 401
+            ? 'Sesión no válida o expirada.'
+            : 'Error al obtener la previsualización.',
+        ),
+      }
     }
 
     return { success: true, url: data.url }
-  } catch {
-    return { success: false, error: 'Error de conexión.' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error de conexión.'
+    return { success: false, error: message }
   }
 }
 
 export async function getDocumentByIdAction(documentId: string) {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
+    const token = await getBearerToken()
 
     if (!token) {
-      return { success: false, error: 'No autorizado. Inicie sesión nuevamente.' }
+      const failure = await getAuthFailure()
+      return { success: false, error: failure.error }
     }
 
     const res = await fetch(`${getApiBaseUrl()}/documentos/${documentId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
       },
       cache: 'no-store',
+      signal: AbortSignal.timeout(120_000),
     })
 
     const data = await res.json().catch(() => null)
 
     if (!res.ok) {
-      return { success: false, error: data?.message || 'Error al obtener el documento.' }
+      return {
+        success: false,
+        error: getApiErrorMessage(
+          data,
+          res.status === 401 ? 'Sesión no válida o expirada.' : 'Error al obtener el documento.',
+        ),
+      }
     }
 
     return { success: true, data }
-  } catch {
-    return { success: false, error: 'Error de conexión.' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error de conexión.'
+    return { success: false, error: message }
   }
 }

@@ -25,6 +25,7 @@ export function TaxonomySection() {
   const [selectedCategorias, setSelectedCategorias] = useState<CategoriaItem[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [temaPrincipal, setTemaPrincipal] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -82,7 +83,8 @@ export function TaxonomySection() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">Tema principal</label>
-        <Select name="temaPrincipal">
+        {temaPrincipal ? <input type="hidden" name="temaPrincipal" value={temaPrincipal} /> : null}
+        <Select value={temaPrincipal || undefined} onValueChange={setTemaPrincipal}>
           <SelectTrigger className="h-11 w-full border-gray-300 bg-white">
             <SelectValue placeholder="Seleccione un área temática..." />
           </SelectTrigger>

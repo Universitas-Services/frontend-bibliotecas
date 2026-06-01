@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decodeJwt, getHomePathForRole, getRoleFromToken } from '@/lib/auth'
+import { decodeJwt, getHomePathForRole, getRoleFromToken, isTokenExpired } from '@/lib/auth'
 
 function createTestJwt(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64')
@@ -35,5 +35,17 @@ describe('auth', () => {
   it('maps role to home path', () => {
     expect(getHomePathForRole('CURADOR')).toBe('/curador')
     expect(getHomePathForRole('AUDITOR')).toBe('/supervisor')
+  })
+
+  it('detects expired tokens via exp claim', () => {
+    const expired = createTestJwt({ exp: Math.floor(Date.now() / 1000) - 10 })
+    const valid = createTestJwt({ exp: Math.floor(Date.now() / 1000) + 3600 })
+
+    expect(isTokenExpired(expired)).toBe(true)
+    expect(isTokenExpired(valid)).toBe(false)
+  })
+
+  it('treats tokens without exp as not expired', () => {
+    expect(isTokenExpired(createTestJwt({ role: 'CURADOR' }))).toBe(false)
   })
 })
