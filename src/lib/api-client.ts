@@ -342,3 +342,67 @@ export async function apiGet(path: string): Promise<ApiResult<unknown>> {
     }
   }
 }
+
+export async function apiPost(path: string, body: unknown): Promise<ApiResult<unknown>> {
+  const token = await getBearerToken()
+
+  if (!token) {
+    const failure = await getAuthFailure()
+    return { success: false, ...failure }
+  }
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+
+    const data = await parseResponseBody(res)
+
+    if (!res.ok) {
+      const fallback =
+        res.status === 401
+          ? 'Sesión no válida o expirada. Inicie sesión nuevamente.'
+          : res.status === 400
+            ? 'La solicitud no cumple los requisitos del servidor.'
+            : 'Error del backend al procesar la solicitud.'
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API POST JSON] ${path} → ${res.status}`, data)
+      }
+
+      return {
+        success: false,
+        error: getApiErrorMessage(data, fallback),
+        details: getApiErrorDetails(data),
+        status: res.status,
+        code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
+        raw: data,
+      }
+    }
+
+    return { success: true, data, status: res.status }
+  } catch (error) {
+    const detail = getFetchErrorMessage(error)
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API POST JSON] ${path} network error`, error)
+    }
+
+    return {
+      success: false,
+      error: isTimeout
+        ? 'El servidor tardó demasiado en responder. Intente de nuevo en unos segundos.'
+        : `Error de conexión con el servidor. ${detail}`,
+      code: 'NETWORK_ERROR',
+    }
+  }
+}

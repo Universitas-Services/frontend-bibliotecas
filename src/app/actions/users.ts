@@ -4,21 +4,19 @@ import { cookies } from 'next/headers'
 import { getApiBaseUrl } from '@/lib/api'
 
 import { validateCreateUserInput } from '@/lib/admin-validation'
-import {
-  createUser,
-  getTemasPrincipales,
-  getTemaPrincipalById,
-  listUsers,
-} from '@/lib/mocks/admin-store'
+import { listUsers } from '@/lib/mocks/admin-store'
 import type { AssignableRole, CreateUserInput } from '@/lib/types/admin'
 
 // TODO(backend): POST /admin/usuarios
 // TODO(backend): GET /admin/usuarios
 // TODO(backend): GET /taxonomia/temas
 
+import { getTemasAction } from '@/app/actions/temas'
+
 export async function listTemasPrincipalesAction() {
   try {
-    return { success: true as const, data: getTemasPrincipales() }
+    const temas = await getTemasAction()
+    return { success: true as const, data: temas }
   } catch {
     return { success: false as const, error: 'No se pudieron cargar los temas principales.' }
   }
@@ -48,7 +46,8 @@ export async function createUserAction(formData: FormData) {
   }
 
   if (input.rol === 'REVISOR' && input.temaPrincipalId) {
-    const tema = getTemaPrincipalById(input.temaPrincipalId)
+    const temas = await getTemasAction()
+    const tema = temas.find((t) => t.id === input.temaPrincipalId)
     if (!tema) {
       return { success: false as const, error: 'El tema principal seleccionado no es válido.' }
     }
