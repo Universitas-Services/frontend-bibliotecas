@@ -1,28 +1,173 @@
 'use client'
 
-import { Save } from 'lucide-react'
+import { useState, useTransition, useEffect } from 'react'
+import { Save, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { FormCombobox } from '@/components/admin/form-combobox'
+import { crearTipoNormaAction, getTiposDocumentoAction } from '@/app/actions/temas'
+import type { TemaPrincipal, Subcarpeta } from '@/app/actions/temas'
 
-export function NuevoInstrumentoForm() {
+type NuevoInstrumentoFormProps = {
+  temas: TemaPrincipal[]
+}
+
+export function NuevoInstrumentoForm({ temas }: NuevoInstrumentoFormProps) {
+  const [isPending, startTransition] = useTransition()
+
+  // Nivel 1: Tema
+  const [temaId, setTemaId] = useState('')
+
+  // Nivel 2: Tipo Documento
+  const [tiposDocumento, setTiposDocumento] = useState<Subcarpeta[]>([])
+  const [subcarpetaId, setSubcarpetaId] = useState('')
+  const [isLoadingDocumentos, setIsLoadingDocumentos] = useState(false)
+
+  // Nivel 3: Tipo Norma
+  const [nombreCarpeta, setNombreCarpeta] = useState('')
+  const [descripcion, setDescripcion] = useState('')
+
+  const temaOptions = temas.map((t) => ({ value: t.id, label: t.nombre }))
+  const documentoOptions = tiposDocumento.map((d) => ({ value: d.id, label: d.tipoNorma }))
+
+  // Fetch Nivel 2 cuando Nivel 1 cambia
+  useEffect(() => {
+    if (!temaId) return
+
+    let isMounted = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoadingDocumentos(true)
+
+    getTiposDocumentoAction(temaId)
+      .then((data) => {
+        if (isMounted) {
+          setTiposDocumento(data)
+          setIsLoadingDocumentos(false)
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsLoadingDocumentos(false)
+          toast.error('Error al cargar tipos de documento para este tema')
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [temaId])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!temaId) {
+      toast.error('Debe seleccionar un tema principal')
+      return
+    }
+    if (!subcarpetaId) {
+      toast.error('Debe seleccionar un tipo de documento')
+      return
+    }
+    if (!nombreCarpeta.trim()) {
+      toast.error('El nombre del instrumento (tipo de norma) es requerido')
+      return
+    }
+
+    startTransition(async () => {
+      const response = await crearTipoNormaAction(
+        subcarpetaId,
+        nombreCarpeta.trim(),
+        descripcion.trim(),
+      )
+
+      if (response.error) {
+        toast.error('Error al crear el tipo de norma', {
+          description: response.error || response.details,
+        })
+        return
+      }
+
+      toast.success('Tipo de norma creado exitosamente')
+      setNombreCarpeta('')
+      setDescripcion('')
+      setSubcarpetaId('')
+      setTemaId('')
+    })
+  }
+
   return (
-    <div className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-bold text-slate-800">Nuevo instrumento</h2>
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm"
+    >
+      <h2 className="text-lg font-bold text-slate-800">Nuevo instrumento (Tipo de norma)</h2>
 
       <div className="space-y-4">
+        {/* Nivel 1 */}
+        <FormCombobox
+          id="temaId"
+          label="1. Tema principal asociado"
+          options={temaOptions}
+          value={temaId}
+          onValueChange={(val) => {
+            setTemaId(val)
+            setSubcarpetaId('')
+            setTiposDocumento([])
+          }}
+          placeholder="Seleccione el tema principal"
+          searchPlaceholder="Buscar tema..."
+          disabled={isPending}
+        />
+
+        {/* Nivel 2 */}
+        <div className="relative">
+          <FormCombobox
+            id="subcarpetaId"
+            label="2. Tipo de documento asociado"
+            options={documentoOptions}
+            value={subcarpetaId}
+            onValueChange={setSubcarpetaId}
+            placeholder={
+              temaId
+                ? tiposDocumento.length > 0
+                  ? 'Seleccione un tipo de documento'
+                  : 'No hay tipos de documento para este tema'
+                : 'Seleccione primero un tema'
+            }
+            searchPlaceholder="Buscar tipo de documento..."
+            disabled={!temaId || isLoadingDocumentos || isPending || tiposDocumento.length === 0}
+          />
+          {isLoadingDocumentos && (
+            <div className="absolute top-8 right-12">
+              <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+            </div>
+          )}
+        </div>
+
+        {/* Nivel 3 */}
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700">
-            Nombre del instrumento
+            3. Nombre del instrumento (Tipo de norma)
           </label>
-          <Input placeholder="Ej. Providencia" className="border-slate-200 bg-slate-50" />
+          <Input
+            value={nombreCarpeta}
+            onChange={(e) => setNombreCarpeta(e.target.value)}
+            placeholder="Ej. Ley ordinaria, Decreto..."
+            className="border-slate-200 bg-slate-50"
+            disabled={!subcarpetaId || isPending}
+          />
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700">Descripción corta</label>
           <Textarea
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Describa el propósito y alcance jurídico de este tipo de norma..."
             className="h-28 resize-none border-slate-200 bg-slate-50"
+            disabled={!subcarpetaId || isPending}
           />
         </div>
       </div>
@@ -32,10 +177,18 @@ export function NuevoInstrumentoForm() {
         las facetas del buscador público.
       </div>
 
-      <Button className="w-full bg-[#0f3b68] text-white hover:bg-[#0a2847]">
-        <Save className="mr-2 h-4 w-4" />
-        Crear tipo de norma
+      <Button
+        type="submit"
+        disabled={!subcarpetaId || isPending}
+        className="w-full bg-[#0f3b68] text-white hover:bg-[#0a2847]"
+      >
+        {isPending ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Save className="mr-2 h-4 w-4" />
+        )}
+        {isPending ? 'Creando...' : 'Crear tipo de norma'}
       </Button>
-    </div>
+    </form>
   )
 }

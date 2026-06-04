@@ -1,14 +1,15 @@
 import { Metadata } from 'next'
 import { NuevoInstrumentoForm } from '@/components/admin/tipo-normas/nuevo-instrumento-form'
 import { InstrumentosTable } from '@/components/admin/tipo-normas/instrumentos-table'
-import { MOCK_INSTRUMENTOS } from '@/components/admin/tipo-normas/mock-data'
+import { getTemasAction } from '@/app/actions/temas'
 
 export const metadata: Metadata = {
   title: 'Gestión de tipos de normas | Admin',
   description: 'Estandarización de formatos jurídicos y configuración del motor de filtros.',
 }
 
-export default function AdminTipoNormasPage() {
+export default async function AdminTipoNormasPage() {
+  const temas = await getTemasAction()
   return (
     <div className="mx-auto max-w-7xl p-4 pt-10 sm:p-6 lg:p-8">
       {/* Header */}
@@ -29,12 +30,12 @@ export default function AdminTipoNormasPage() {
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
         {/* Formulario de creación (Izquierda en Desktop) */}
         <div className="lg:col-span-4 xl:col-span-4">
-          <NuevoInstrumentoForm />
+          <NuevoInstrumentoForm temas={temas} />
         </div>
 
         {/* Tabla (Derecha en Desktop) */}
         <div className="lg:col-span-8 xl:col-span-8">
-          <InstrumentosTable initialInstrumentos={MOCK_INSTRUMENTOS} />
+          <InstrumentosTable temas={temas} />
         </div>
       </div>
     </div>

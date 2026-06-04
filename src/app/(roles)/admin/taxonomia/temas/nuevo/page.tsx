@@ -14,6 +14,7 @@ export default function CrearTemaPage() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [nombreTema, setNombreTema] = useState('')
+  const [descripcion, setDescripcion] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,7 +24,7 @@ export default function CrearTemaPage() {
     }
 
     startTransition(async () => {
-      const response = await crearTemaAction(nombreTema.trim())
+      const response = await crearTemaAction(nombreTema.trim(), descripcion.trim())
 
       if (response.error) {
         toast.error('Error al crear el tema', {
@@ -68,6 +69,19 @@ export default function CrearTemaPage() {
               onChange={(e) => setNombreTema(e.target.value)}
               placeholder="Ej. Derecho Civil"
               className="max-w-md border-slate-200 bg-slate-50"
+              disabled={isPending}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-slate-700">
+              Descripción del tema
+            </label>
+            <textarea
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="Describa el propósito y alcance de este tema..."
+              className="flex min-h-[80px] w-full max-w-md rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isPending}
             />
           </div>

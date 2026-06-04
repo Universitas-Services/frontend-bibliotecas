@@ -10,18 +10,22 @@ const users: AdminUser[] = [
     id: 'user-mock-1',
     nombre: 'Ana',
     apellido: 'Gómez',
-    email: 'ana.gomez@universitas.edu',
+    correo: 'ana.gomez@universitas.edu',
     rol: 'CURADOR',
-    createdAt: new Date('2025-01-10').toISOString(),
   },
   {
     id: 'user-mock-2',
     nombre: 'Carlos',
     apellido: 'Méndez',
-    email: 'carlos.mendez@universitas.edu',
+    correo: 'carlos.mendez@universitas.edu',
     rol: 'REVISOR',
-    temaPrincipalId: 'propiedad-intelectual',
-    createdAt: new Date('2025-02-15').toISOString(),
+    temasPrincipales: [
+      {
+        id: 'propiedad-intelectual',
+        nombre: 'Propiedad Intelectual',
+        slug: 'propiedad-intelectual',
+      },
+    ],
   },
 ]
 
@@ -54,15 +58,13 @@ export function getTemaPrincipalById(id: string): TemaPrincipal | undefined {
 }
 
 export function listUsers(): AdminUser[] {
-  return [...users].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  )
+  return [...users]
 }
 
 export function createUser(
-  data: Omit<AdminUser, 'id' | 'createdAt'> & { password?: string },
+  data: Omit<AdminUser, 'id'> & { password?: string; temaIds?: string[] },
 ): AdminUser {
-  const exists = users.some((u) => u.email.toLowerCase() === data.email.toLowerCase())
+  const exists = users.some((u) => u.correo.toLowerCase() === data.correo.toLowerCase())
   if (exists) {
     throw new Error('Ya existe un usuario con ese correo electrónico.')
   }
@@ -71,10 +73,11 @@ export function createUser(
     id: `user-${crypto.randomUUID()}`,
     nombre: data.nombre,
     apellido: data.apellido,
-    email: data.email,
+    correo: data.correo,
     rol: data.rol,
-    temaPrincipalId: data.temaPrincipalId,
-    createdAt: new Date().toISOString(),
+    temasPrincipales: data.temaIds
+      ? data.temaIds.map((id) => ({ id, nombre: 'Tema', slug: 'tema' }))
+      : undefined,
   }
 
   users.push(user)

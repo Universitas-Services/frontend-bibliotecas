@@ -4,7 +4,6 @@ import { cookies } from 'next/headers'
 import { getApiBaseUrl } from '@/lib/api'
 
 import { validateCreateUserInput } from '@/lib/admin-validation'
-import { listUsers } from '@/lib/mocks/admin-store'
 import type { AssignableRole, CreateUserInput } from '@/lib/types/admin'
 
 // TODO(backend): POST /admin/usuarios
@@ -22,10 +21,35 @@ export async function listTemasPrincipalesAction() {
   }
 }
 
-export async function listUsersAction() {
+export async function listUsersAction(params?: { page?: number; limit?: number; role?: string }) {
   try {
-    return { success: true as const, data: listUsers() }
-  } catch {
+    const cookieStore = await cookies()
+    const token = cookieStore.get('access_token')?.value
+
+    if (!token) {
+      return { success: false as const, error: 'No autorizado. Inicie sesión nuevamente.' }
+    }
+
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.set('page', params.page.toString())
+    if (params?.limit) queryParams.set('limit', params.limit.toString())
+    if (params?.role && params.role !== 'TODOS') queryParams.set('role', params.role)
+
+    const res = await fetch(`${getApiBaseUrl()}/users/admin/usuarios?${queryParams.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      next: { tags: ['usuarios'] },
+    })
+
+    if (!res.ok) {
+      return { success: false as const, error: 'Error al obtener la lista de usuarios.' }
+    }
+
+    const data = await res.json()
+    return { success: true as const, data }
+  } catch (error) {
+    console.error('Error fetching users:', error)
     return { success: false as const, error: 'No se pudieron cargar los usuarios.' }
   }
 }
@@ -37,7 +61,7 @@ export async function createUserAction(formData: FormData) {
     email: String(formData.get('email') ?? ''),
     password: String(formData.get('password') ?? ''),
     rol: String(formData.get('rol') ?? '') as AssignableRole,
-    temaPrincipalId: String(formData.get('temaPrincipalId') ?? '') || undefined,
+    temaIds: JSON.parse(String(formData.get('temaIds') || '[]')),
   }
 
   const validationError = validateCreateUserInput(input)
@@ -45,11 +69,18 @@ export async function createUserAction(formData: FormData) {
     return { success: false as const, error: validationError }
   }
 
-  if (input.rol === 'REVISOR' && input.temaPrincipalId) {
+  if (
+    (input.rol === 'REVISOR' || input.rol === 'CURADOR') &&
+    input.temaIds &&
+    input.temaIds.length > 0
+  ) {
     const temas = await getTemasAction()
-    const tema = temas.find((t) => t.id === input.temaPrincipalId)
-    if (!tema) {
-      return { success: false as const, error: 'El tema principal seleccionado no es válido.' }
+    const allValid = input.temaIds.every((id) => temas.some((t) => t.id === id))
+    if (!allValid) {
+      return {
+        success: false as const,
+        error: 'Uno de los temas principales seleccionados no es válido.',
+      }
     }
   }
 
@@ -67,7 +98,8 @@ export async function createUserAction(formData: FormData) {
       role: input.rol,
       nombre: input.nombre.trim(),
       apellido: input.apellido.trim(),
-      temaIds: input.rol === 'REVISOR' && input.temaPrincipalId ? [input.temaPrincipalId] : [],
+      temaIds:
+        (input.rol === 'REVISOR' || input.rol === 'CURADOR') && input.temaIds ? input.temaIds : [],
     }
 
     const res = await fetch(`${getApiBaseUrl()}/users/admin/staff`, {

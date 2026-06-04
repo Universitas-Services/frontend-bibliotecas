@@ -11,10 +11,21 @@ export type AdminUser = {
   id: string
   nombre: string
   apellido: string
-  email: string
+  correo: string
   rol: AssignableRole
-  temaPrincipalId?: string
-  createdAt: string
+  temasPrincipales?: {
+    id: string
+    nombre: string
+    slug: string
+  }[]
+}
+
+export type PaginatedUsersResponse = {
+  items: AdminUser[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export type MatrizItem = {
@@ -31,5 +42,5 @@ export type CreateUserInput = {
   email: string
   password: string
   rol: AssignableRole
-  temaPrincipalId?: string
+  temaIds?: string[]
 }
