@@ -11,6 +11,16 @@ export function decodeJwt(token: string): Record<string, unknown> | null {
   }
 }
 
+export function isTokenExpired(token: string): boolean {
+  const payload = decodeJwt(token)
+  if (!payload) return true
+
+  const exp = payload.exp
+  if (typeof exp !== 'number') return false
+
+  return exp * 1000 <= Date.now()
+}
+
 export function getRoleFromToken(token: string): UserRole | null {
   const payload = decodeJwt(token)
   if (!payload) return null

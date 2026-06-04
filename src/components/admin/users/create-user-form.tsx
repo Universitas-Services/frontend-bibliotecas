@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { createUserAction } from '@/app/actions/users'
 import { FormCombobox } from '@/components/admin/form-combobox'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { requiresTemaPrincipal, validateCreateUserInput } from '@/lib/admin-validation'
@@ -31,16 +32,27 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rol, setRol] = useState<AssignableRole | ''>('')
-  const [temaPrincipalId, setTemaPrincipalId] = useState('')
+  const [temaIds, setTemaIds] = useState<string[]>([])
 
-  const temaOptions = temas.map((t) => ({ value: t.id, label: t.nombre }))
   const showTema = requiresTemaPrincipal(rol)
 
   const handleRolChange = (value: string) => {
     const nextRol = value as AssignableRole | ''
     setRol(nextRol)
     if (!requiresTemaPrincipal(nextRol)) {
-      setTemaPrincipalId('')
+      setTemaIds([])
+    }
+  }
+
+  const toggleTema = (id: string) => {
+    setTemaIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]))
+  }
+
+  const toggleTodosTemas = () => {
+    if (temaIds.length === temas.length) {
+      setTemaIds([])
+    } else {
+      setTemaIds(temas.map((t) => t.id))
     }
   }
 
@@ -53,7 +65,7 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
       email,
       password,
       rol: rol as AssignableRole,
-      temaPrincipalId: showTema ? temaPrincipalId : undefined,
+      temaIds: showTema ? temaIds : undefined,
     }
 
     const validationError = validateCreateUserInput(input)
@@ -68,8 +80,8 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
     formData.set('email', email)
     formData.set('password', password)
     formData.set('rol', rol)
-    if (showTema && temaPrincipalId) {
-      formData.set('temaPrincipalId', temaPrincipalId)
+    if (showTema && temaIds.length > 0) {
+      formData.set('temaIds', JSON.stringify(temaIds))
     }
 
     startTransition(async () => {
@@ -130,16 +142,44 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
         />
 
         {showTema ? (
-          <FormCombobox
-            id="temaPrincipal"
-            label="Tema principal"
-            hint="Especialidad del revisor para el enrutamiento de documentos"
-            options={temaOptions}
-            value={temaPrincipalId}
-            onValueChange={setTemaPrincipalId}
-            placeholder="Seleccione un tema principal..."
-            searchPlaceholder="Buscar tema..."
-          />
+          <div className="space-y-3">
+            <Label className="text-sm font-bold text-[#00315C]">Temas principales asignados</Label>
+            <p className="text-xs text-gray-500 italic">
+              Seleccione uno o varios temas. Puede seleccionar todos.
+            </p>
+            <div className="space-y-3 rounded-md border border-gray-200 bg-slate-50 p-4">
+              <div className="flex items-center space-x-2 border-b border-gray-200 pb-2">
+                <Checkbox
+                  id="select-all"
+                  checked={temaIds.length === temas.length && temas.length > 0}
+                  onCheckedChange={toggleTodosTemas}
+                />
+                <label
+                  htmlFor="select-all"
+                  className="cursor-pointer text-sm leading-none font-medium"
+                >
+                  Seleccionar todos
+                </label>
+              </div>
+              <div className="grid grid-cols-1 gap-3 pt-2 md:grid-cols-2">
+                {temas.map((tema) => (
+                  <div key={tema.id} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={`tema-${tema.id}`}
+                      checked={temaIds.includes(tema.id)}
+                      onCheckedChange={() => toggleTema(tema.id)}
+                    />
+                    <label
+                      htmlFor={`tema-${tema.id}`}
+                      className="cursor-pointer text-sm leading-none"
+                    >
+                      {tema.nombre}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         ) : null}
       </div>
 

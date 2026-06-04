@@ -10,7 +10,8 @@ export function LegalIdentification() {
           <Info className="h-4 w-4 text-gray-400" strokeWidth={2} />
         </label>
         <Input
-          name="titulo"
+          name="tituloIntegro"
+          required
           placeholder="Escriba el nombre completo del instrumento legal..."
           className="h-11 border-gray-300"
         />

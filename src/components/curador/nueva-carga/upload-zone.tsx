@@ -2,10 +2,16 @@
 
 import { useState } from 'react'
 import { CloudUpload } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 
-export function UploadZone() {
+type UploadZoneProps = {
+  disabled?: boolean
+  onFileSelected: (file: File | null) => void
+}
+
+export function UploadZone({ disabled = false, onFileSelected }: UploadZoneProps) {
   const [fileName, setFileName] = useState<string | null>(null)
   const [fileSize, setFileSize] = useState<string>('0.0 MB')
 
@@ -14,7 +20,12 @@ export function UploadZone() {
     if (file) {
       setFileName(file.name)
       setFileSize((file.size / (1024 * 1024)).toFixed(2) + ' MB')
+      onFileSelected(file)
+      return
     }
+    setFileName(null)
+    setFileSize('0.0 MB')
+    onFileSelected(null)
   }
 
   return (
@@ -25,6 +36,7 @@ export function UploadZone() {
           name="file"
           className="hidden"
           accept=".pdf,.doc,.docx"
+          disabled={disabled}
           onChange={handleFileChange}
         />
         <CloudUpload
@@ -50,7 +62,13 @@ export function UploadZone() {
       </label>
 
       <div className="flex items-start space-x-3">
-        <Checkbox id="ocr" name="soloLecturaImagen" value="true" className="mt-1 border-gray-300" />
+        <Checkbox
+          id="ocr"
+          name="soloLecturaImagen"
+          value="true"
+          className="mt-1 border-gray-300"
+          disabled={disabled}
+        />
         <div className="grid gap-1.5 leading-none">
           <label
             htmlFor="ocr"

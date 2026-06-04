@@ -29,17 +29,19 @@ export function validateCreateUserInput(input: CreateUserInput): string | null {
 
   if (!input.rol) return 'Debe asignar un rol en la plataforma.'
 
-  if (input.rol === 'REVISOR' && !input.temaPrincipalId) {
-    return 'Debe seleccionar un tema principal para el revisor.'
+  const needsTema = requiresTemaPrincipal(input.rol)
+
+  if (needsTema && (!input.temaIds || input.temaIds.length === 0)) {
+    return 'Debe seleccionar al menos un tema principal.'
   }
 
-  if (input.rol !== 'REVISOR' && input.temaPrincipalId) {
-    return 'El tema principal solo aplica para usuarios con rol Revisor.'
+  if (!needsTema && input.temaIds && input.temaIds.length > 0) {
+    return 'El tema principal solo aplica para roles Revisor y Curador.'
   }
 
   return null
 }
 
 export function requiresTemaPrincipal(rol: AssignableRole | ''): boolean {
-  return rol === 'REVISOR'
+  return rol === 'REVISOR' || rol === 'CURADOR'
 }

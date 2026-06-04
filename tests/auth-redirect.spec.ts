@@ -30,6 +30,50 @@ test.describe('Route protection', () => {
     await expect(page).toHaveURL(/\/login/)
   })
 
+  test('redirects root / to /login when unauthenticated', async ({ page }) => {
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/login/)
+    await expect(page.getByRole('heading', { name: 'Acceso Institucional' })).toBeVisible()
+  })
+
+  test('redirects authenticated CURADOR from / to /curador', async ({ context, page }) => {
+    const token = createTestJwt({ role: 'CURADOR' })
+    await context.addCookies([
+      {
+        name: 'access_token',
+        value: token,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ])
+
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/curador/)
+  })
+
+  test('redirects expired token from /curador to /login', async ({ context, page }) => {
+    const expired = createTestJwt({
+      role: 'CURADOR',
+      exp: Math.floor(Date.now() / 1000) - 60,
+    })
+    await context.addCookies([
+      {
+        name: 'access_token',
+        value: expired,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ])
+
+    await page.goto('/curador/gestion-documental')
+    await expect(page).toHaveURL(/\/login/)
+    await expect(page.getByRole('heading', { name: 'Acceso Institucional' })).toBeVisible()
+  })
+
   test('redirects unauthenticated users from /curador to /login', async ({ page }) => {
     await page.goto('/curador')
     await expect(page).toHaveURL(/\/login\?redirect=%2Fcurador/)

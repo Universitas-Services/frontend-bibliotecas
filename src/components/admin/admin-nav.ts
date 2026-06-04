@@ -10,6 +10,7 @@ import {
   UserCog,
   Users,
   Headset,
+  Network,
 } from 'lucide-react'
 
 export type AdminNavItem = {
@@ -41,9 +42,11 @@ export const adminNavSections: AdminNavSection[] = [
   {
     label: 'Taxonomía',
     items: [
+      { title: 'Temas', url: '/admin/taxonomia/temas', icon: Network },
+      { title: 'Tipos de documentos', url: '/admin/taxonomia/tipo-documentos', icon: Newspaper },
+      { title: 'Tipo de normas', url: '/admin/taxonomia/tipo-normas', icon: Gavel },
       { title: 'Categorías', url: '/admin/taxonomia/categorias', icon: Boxes },
       { title: 'Etiquetas', url: '/admin/taxonomia/etiquetas', icon: Tag },
-      { title: 'Tipo de normas', url: '/admin/taxonomia/tipo-normas', icon: Gavel },
     ],
   },
   {

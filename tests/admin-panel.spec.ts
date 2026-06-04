@@ -30,12 +30,12 @@ test.describe('Admin panel', () => {
     await page.goto('/admin/usuarios/nuevo')
 
     await expect(page.getByLabel('Asignar Rol en la plataforma')).toBeVisible()
-    await expect(page.getByLabel('Tema principal')).not.toBeVisible()
+    await expect(page.getByText('Temas principales asignados')).not.toBeVisible()
 
     await page.getByRole('combobox', { name: 'Asignar Rol en la plataforma' }).click()
     await page.getByRole('option', { name: 'Revisor' }).click()
 
-    await expect(page.getByLabel('Tema principal')).toBeVisible()
+    await expect(page.getByText('Temas principales asignados')).toBeVisible()
   })
 
   test('navigates to catalogo matrices pages', async ({ context, page }) => {

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { AlertTriangle, Sparkles, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getCategoriasAdmin } from '@/app/actions/categorias'
+import { getTemasAction, TemaPrincipal } from '@/app/actions/temas'
 
 interface CategoriaItem {
   id?: string
@@ -21,19 +22,22 @@ interface CategoriaItem {
 
 export function TaxonomySection() {
   const [categoriasDB, setCategoriasDB] = useState<CategoriaItem[]>([])
+  const [temasDB, setTemasDB] = useState<TemaPrincipal[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategorias, setSelectedCategorias] = useState<CategoriaItem[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [temaPrincipal, setTemaPrincipal] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const data = await getCategoriasAdmin()
-        setCategoriasDB(Array.isArray(data) ? data : [])
+        const [catData, temData] = await Promise.all([getCategoriasAdmin(), getTemasAction()])
+        setCategoriasDB(Array.isArray(catData) ? catData : [])
+        setTemasDB(Array.isArray(temData) ? temData : [])
       } catch (error) {
-        console.error('Error al cargar categorías', error)
+        console.error('Error al cargar datos de taxonomía', error)
       } finally {
         setLoading(false)
       }
@@ -82,13 +86,24 @@ export function TaxonomySection() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">Tema principal</label>
-        <Select name="temaPrincipal">
+        {temaPrincipal ? <input type="hidden" name="temaPrincipal" value={temaPrincipal} /> : null}
+        <Select value={temaPrincipal || undefined} onValueChange={setTemaPrincipal}>
           <SelectTrigger className="h-11 w-full border-gray-300 bg-white">
-            <SelectValue placeholder="Seleccione un área temática..." />
+            <SelectValue
+              placeholder={loading ? 'Cargando temas...' : 'Seleccione un área temática...'}
+            />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="propiedad-intelectual">Propiedad Intelectual</SelectItem>
-            <SelectItem value="normativa-digital">Normativa Digital</SelectItem>
+            {temasDB.map((tema) => (
+              <SelectItem key={tema.id} value={tema.id}>
+                {tema.nombre}
+              </SelectItem>
+            ))}
+            {temasDB.length === 0 && !loading && (
+              <SelectItem value="sin-temas" disabled>
+                No hay temas disponibles
+              </SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>
