@@ -4,14 +4,28 @@ import { RevisionHistory } from '@/components/curador/correcciones/revision-hist
 import { RequiredCorrections } from '@/components/curador/correcciones/required-corrections'
 import { CorrectionsFooter } from '@/components/curador/correcciones/corrections-footer'
 import { getDocumentByIdAction } from '@/app/actions/documents'
+import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default async function CorreccionesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const documentRes = await getDocumentByIdAction(id)
+
+  const [documentRes, metadataRes] = await Promise.all([
+    getDocumentByIdAction(id),
+    getMetadataByDocumentIdAction(id),
+  ])
+
   const docData = documentRes.success ? documentRes.data : null
-  const titulo = docData?.titulo || docData?.nombreBreve || 'Documento sin título'
-  const estadoBackend = docData?.estado || 'EN REVISIÓN'
+  const metadataData = metadataRes.success ? metadataRes.data : null
+
+  // Combina los datos para la ficha técnica
+  const combinedData = {
+    ...docData,
+    ...metadataData,
+  }
+
+  const titulo = combinedData?.titulo || combinedData?.nombreBreve || 'Documento sin título'
+  const estadoBackend = combinedData?.estado || 'EN REVISIÓN'
 
   return (
     <div className="animate-in fade-in min-h-full bg-[#FAFAFA] pb-24 duration-500">
@@ -88,7 +102,7 @@ export default async function CorreccionesPage({ params }: { params: Promise<{ i
               </TabsList>
 
               <TabsContent value="metadata" className="mt-0 outline-none">
-                <DocumentMetadataCard document={docData} />
+                <DocumentMetadataCard document={combinedData} />
               </TabsContent>
 
               <TabsContent value="history" className="mt-0 outline-none">

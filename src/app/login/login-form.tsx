@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { loginAction } from '@/app/actions/auth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Mail, Lock, ArrowRight, Hexagon } from 'lucide-react'
+import { Mail, Lock, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEffect } from 'react'
 
@@ -26,12 +26,14 @@ export function LoginForm() {
 
   return (
     <div className="flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-[#F8FAFC]">
-      {/* Logo temporal */}
-      <div className="mb-8 flex flex-col items-center">
-        <div className="mb-2 flex h-12 w-12 items-center justify-center bg-[#404551]">
-          {/* Cuadrado oscuro superior del logo */}
-        </div>
-        <Hexagon className="h-16 w-16 text-[#005496]" strokeWidth={1.5} />
+      {/* Logo */}
+      <div className="mb-8 flex justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/LOGO UNIVERSITAS LEGAL.png"
+          alt="Universitas Legal"
+          className="h-28 w-auto object-contain brightness-0 drop-shadow-md invert"
+        />
       </div>
 
       {/* Card del Login */}

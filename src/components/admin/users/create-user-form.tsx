@@ -92,7 +92,6 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
       }
       toast.success('Usuario creado correctamente.')
       router.push('/admin/usuarios')
-      router.refresh()
     })
   }
 

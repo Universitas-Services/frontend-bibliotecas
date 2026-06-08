@@ -7,21 +7,39 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
   const issues: UploadValidationIssue[] = []
 
   const tituloIntegro = String(formData.get('tituloIntegro') ?? '').trim()
-  const fechaPublicacion = String(formData.get('fechaPublicacion') ?? '').trim()
-  const enteEmisor = String(formData.get('enteEmisor') ?? '').trim()
+  const temaPrincipal = String(formData.get('temaPrincipal') ?? '').trim()
+  const tipoDocumento = String(formData.get('tipoDocumento') ?? '').trim()
   const tipoNorma = String(formData.get('tipoNorma') ?? '').trim()
+  const enteEmisor = String(formData.get('enteEmisor') ?? '').trim()
+  const fechaPublicacion = String(formData.get('fechaPublicacion') ?? '').trim()
+  const pais = String(formData.get('pais') ?? '').trim()
+  const ambitoTerritorial = String(formData.get('ambitoTerritorial') ?? '').trim()
+
+  if (!temaPrincipal) {
+    issues.push({
+      field: 'temaPrincipal',
+      message: 'Seleccione un tema principal.',
+    })
+  }
+
+  if (!tipoDocumento) {
+    issues.push({
+      field: 'tipoDocumento',
+      message: 'Seleccione un tipo de documento.',
+    })
+  }
+
+  if (!tipoNorma) {
+    issues.push({
+      field: 'tipoNorma',
+      message: 'Seleccione un tipo de norma.',
+    })
+  }
 
   if (!tituloIntegro) {
     issues.push({
       field: 'tituloIntegro',
       message: 'El título oficial es obligatorio.',
-    })
-  }
-
-  if (!fechaPublicacion) {
-    issues.push({
-      field: 'fechaPublicacion',
-      message: 'La fecha de publicación es obligatoria.',
     })
   }
 
@@ -32,10 +50,24 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
     })
   }
 
-  if (!tipoNorma) {
+  if (!fechaPublicacion) {
     issues.push({
-      field: 'tipoNorma',
-      message: 'Seleccione un tipo de norma.',
+      field: 'fechaPublicacion',
+      message: 'La fecha de publicación es obligatoria.',
+    })
+  }
+
+  if (!ambitoTerritorial) {
+    issues.push({
+      field: 'ambitoTerritorial',
+      message: 'Seleccione un ámbito territorial.',
+    })
+  }
+
+  if (!pais) {
+    issues.push({
+      field: 'pais',
+      message: 'El país es obligatorio.',
     })
   }
 

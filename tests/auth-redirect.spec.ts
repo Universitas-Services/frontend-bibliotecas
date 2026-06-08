@@ -94,7 +94,7 @@ test.describe('Route protection', () => {
 
     await page.goto('/curador')
     await expect(page).toHaveURL(/\/curador/)
-    await expect(page.getByText('Universitas')).toBeVisible()
+    await expect(page.getByAltText('Universitas Legal Analyst')).toBeVisible()
   })
 
   test('redirects CURADOR away from /supervisor', async ({ context, page }) => {

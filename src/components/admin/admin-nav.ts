@@ -7,7 +7,6 @@ import {
   Newspaper,
   Settings,
   Tag,
-  UserCog,
   Users,
   Headset,
   Network,
@@ -27,10 +26,7 @@ export type AdminNavSection = {
 export const adminNavSections: AdminNavSection[] = [
   {
     label: 'Administración',
-    items: [
-      { title: 'Usuarios', url: '/admin/usuarios', icon: Users },
-      { title: 'Crear usuario', url: '/admin/usuarios/nuevo', icon: UserCog },
-    ],
+    items: [{ title: 'Usuarios', url: '/admin/usuarios', icon: Users }],
   },
   {
     label: 'Catálogo comercial',

@@ -1,18 +1,10 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { X, Loader2 } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
-import { AlertTriangle, Sparkles, X, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { getCategoriasAdmin } from '@/app/actions/categorias'
-import { getTemasAction, TemaPrincipal } from '@/app/actions/temas'
 
 interface CategoriaItem {
   id?: string
@@ -22,22 +14,19 @@ interface CategoriaItem {
 
 export function TaxonomySection() {
   const [categoriasDB, setCategoriasDB] = useState<CategoriaItem[]>([])
-  const [temasDB, setTemasDB] = useState<TemaPrincipal[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategorias, setSelectedCategorias] = useState<CategoriaItem[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [temaPrincipal, setTemaPrincipal] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [catData, temData] = await Promise.all([getCategoriasAdmin(), getTemasAction()])
+        const catData = await getCategoriasAdmin()
         setCategoriasDB(Array.isArray(catData) ? catData : [])
-        setTemasDB(Array.isArray(temData) ? temData : [])
       } catch (error) {
-        console.error('Error al cargar datos de taxonomía', error)
+        console.error('Error al cargar categorías', error)
       } finally {
         setLoading(false)
       }
@@ -74,7 +63,7 @@ export function TaxonomySection() {
 
   return (
     <div className="space-y-6">
-      {/* Inputs ocultos para que el form de Next.js capture los IDs seleccionados como un arreglo */}
+      {/* Inputs ocultos para que el form capture los IDs seleccionados */}
       {selectedCategorias.map((cat) => (
         <input
           key={cat.id || cat._id}
@@ -83,37 +72,6 @@ export function TaxonomySection() {
           value={cat.id || cat._id}
         />
       ))}
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-[#00315C]">Tema principal</label>
-        {temaPrincipal ? <input type="hidden" name="temaPrincipal" value={temaPrincipal} /> : null}
-        <Select value={temaPrincipal || undefined} onValueChange={setTemaPrincipal}>
-          <SelectTrigger className="h-11 w-full border-gray-300 bg-white">
-            <SelectValue
-              placeholder={loading ? 'Cargando temas...' : 'Seleccione un área temática...'}
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {temasDB.map((tema) => (
-              <SelectItem key={tema.id} value={tema.id}>
-                {tema.nombre}
-              </SelectItem>
-            ))}
-            {temasDB.length === 0 && !loading && (
-              <SelectItem value="sin-temas" disabled>
-                No hay temas disponibles
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex items-start gap-3 rounded-md border border-[#F6C07B] bg-[#FFF4E5] p-4 text-[#A8610A]">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={2} />
-        <p className="text-sm">
-          Aviso: El tema seleccionado determinará los flujos de revisión automáticos.
-        </p>
-      </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">Categorías asignadas</label>
@@ -173,33 +131,6 @@ export function TaxonomySection() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <label className="text-sm font-medium text-[#00315C]">Etiquetas</label>
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge
-            variant="secondary"
-            className="rounded-full border border-[#B3D4FF] bg-[#EBF3FF] px-4 py-1.5 font-normal text-[#005496] hover:bg-[#D4E4FA]"
-          >
-            #ProtecciónDatos
-          </Badge>
-          <Badge
-            variant="secondary"
-            className="rounded-full border border-[#B3D4FF] bg-[#EBF3FF] px-4 py-1.5 font-normal text-[#005496] hover:bg-[#D4E4FA]"
-          >
-            #GDPR_EU
-          </Badge>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="h-8 gap-2 rounded-full bg-gray-200 px-4 text-xs font-medium text-gray-700 hover:bg-gray-300"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Sugiero IA
-          </Button>
         </div>
       </div>
     </div>
