@@ -2,7 +2,6 @@
 
 import { apiPost, apiGet } from '@/lib/api-client'
 import { revalidatePath } from 'next/cache'
-import { getTemasPrincipales } from '@/lib/mocks/admin-store'
 
 export interface CrearTemaResponse {
   error?: string
@@ -119,21 +118,19 @@ export interface TemaPrincipal {
 export async function getTemasAction(): Promise<TemaPrincipal[]> {
   const result = await apiGet('/admin/storage/temas')
 
-  // console.log('getTemasAction API result:', JSON.stringify(result, null, 2))
-
   if (!result.success) {
     console.warn(
-      'Error fetching temas from API (posible problema de permisos). Usando mock data como fallback.',
+      'Error fetching temas from API (posible problema de permisos). El backend debe permitir al CURADOR acceder a GET /admin/storage/temas.',
       result.error,
     )
-    return getTemasPrincipales() as unknown as TemaPrincipal[]
+    return []
   }
 
   if (Array.isArray(result.data)) {
     return result.data as TemaPrincipal[]
   }
 
-  return getTemasPrincipales() as unknown as TemaPrincipal[]
+  return []
 }
 
 export async function getTiposDocumentoAction(temaId: string): Promise<Subcarpeta[]> {

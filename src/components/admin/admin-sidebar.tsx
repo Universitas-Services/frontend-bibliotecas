@@ -65,14 +65,13 @@ export function AdminSidebar() {
           >
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
-          <div className="flex min-w-0 items-center gap-2 text-white">
-            <Landmark className="h-7 w-7 shrink-0 text-white" strokeWidth={1.5} />
-            <div className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate font-serif text-lg font-semibold tracking-tight text-white">
-                UNIVERSITAS
-              </span>
-              <span className="text-xs font-medium text-white/80">Legal</span>
-            </div>
+          <div className="flex min-w-0 items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/LOGO UNIVERSITAS LEGAL.png"
+              alt="Universitas Legal"
+              className="h-10 w-auto object-contain"
+            />
           </div>
         </div>
 

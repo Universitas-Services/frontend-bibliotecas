@@ -56,16 +56,13 @@ export function CuradorSidebar() {
         )}
       >
         <div className="flex w-full min-w-0 items-center justify-between gap-3 group-data-[collapsible=icon]:hidden">
-          <div className="flex min-w-0 items-center gap-3 text-[#005496]">
-            <Landmark className="h-8 w-8 shrink-0" strokeWidth={1.5} />
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate font-sans text-xl leading-tight font-bold tracking-tight">
-                Universitas
-              </span>
-              <span className="mt-0.5 text-[10px] font-semibold tracking-widest text-[#00315C] uppercase">
-                LEGAL ANALYST
-              </span>
-            </div>
+          <div className="flex min-w-0 items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/LOGO UNIVERSITAS LEGAL.png"
+              alt="Universitas Legal Analyst"
+              className="h-10 w-auto object-contain opacity-90 brightness-0 invert"
+            />
           </div>
           <SidebarTrigger
             className="h-9 w-9 shrink-0 text-gray-600 hover:bg-gray-100 hover:text-[#005496]"

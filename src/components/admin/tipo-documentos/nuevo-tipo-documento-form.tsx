@@ -62,11 +62,18 @@ export function NuevoTipoDocumentoForm({ temas }: NuevoTipoDocumentoFormProps) {
           <Label htmlFor="temaPrincipal" className="text-sm font-medium text-slate-700">
             Tema principal <span className="text-red-500">*</span>
           </Label>
-          <Select value={temaId} onValueChange={setTemaId} disabled={isPending}>
+          <Select
+            value={temaId || undefined}
+            onValueChange={(val) => setTemaId(val === 'none' ? '' : val)}
+            disabled={isPending}
+          >
             <SelectTrigger id="temaPrincipal" className="w-full bg-slate-50">
-              <SelectValue placeholder="Seleccione un tema" />
+              <SelectValue placeholder="Seleccione un tema principal" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="none" className="text-gray-500 italic focus:bg-gray-100">
+                Seleccione un tema principal...
+              </SelectItem>
               {temas.map((tema) => (
                 <SelectItem key={tema.id} value={tema.id}>
                   {tema.nombre}
