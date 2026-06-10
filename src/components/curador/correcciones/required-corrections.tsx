@@ -1,69 +1,46 @@
-import { Checkbox } from '@/components/ui/checkbox'
+import type { NotaInterna } from '@/app/actions/notas-internas'
 
-export function RequiredCorrections() {
+type RequiredCorrectionsProps = {
+  notas: NotaInterna[]
+}
+
+function getAutorLabel(nota: NotaInterna): string {
+  return nota.autorNombre || nota.autor || 'Administrador'
+}
+
+function formatFecha(fecha?: string): string {
+  if (!fecha) return ''
+  const date = new Date(fecha)
+  if (Number.isNaN(date.getTime())) return fecha
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
+}
+
+export function RequiredCorrections({ notas }: RequiredCorrectionsProps) {
   return (
     <div className="flex h-full flex-col rounded-r-xl border-l-[3px] border-[#D97706] bg-[#2A2F3A] p-6 shadow-md">
       <h3 className="mb-6 text-[10px] font-bold tracking-wider text-[#C1C7D2] uppercase">
         CORRECCIONES REQUERIDAS
       </h3>
 
-      <div className="flex-1 space-y-5">
-        <div className="flex items-start gap-3">
-          <Checkbox
-            id="c1"
-            className="mt-0.5 h-4 w-4 rounded-sm border-[#6B7280] data-[state=checked]:border-[#00315C] data-[state=checked]:bg-[#00315C] data-[state=checked]:text-white"
-            checked
-          />
-          <label
-            htmlFor="c1"
-            className="cursor-pointer text-[13px] leading-snug font-medium text-[#D4E4FA]"
-          >
-            Verificar texto íntegro Art. 1.196
-          </label>
+      {notas.length === 0 ? (
+        <p className="text-sm text-[#9CA3AF]">No hay correcciones pendientes.</p>
+      ) : (
+        <div className="flex-1 space-y-5">
+          {notas.map((nota) => (
+            <div key={nota.id} className="rounded-md border border-[#404551] bg-[#1F2430] p-4">
+              <p className="text-[13px] leading-snug font-medium text-[#D4E4FA]">
+                {nota.contenido}
+              </p>
+              <p className="mt-2 text-[11px] font-semibold text-[#9CA3AF]">
+                {getAutorLabel(nota)}
+                {(nota.createdAt || nota.fecha) && (
+                  <> · {formatFecha(nota.createdAt || nota.fecha)}</>
+                )}
+              </p>
+            </div>
+          ))}
         </div>
-
-        <div className="flex items-start gap-3">
-          <Checkbox
-            id="c2"
-            className="mt-0.5 h-4 w-4 rounded-sm border-[#6B7280] data-[state=checked]:border-[#00315C] data-[state=checked]:bg-[#00315C] data-[state=checked]:text-white"
-            checked
-          />
-          <label
-            htmlFor="c2"
-            className="cursor-pointer text-[13px] leading-snug font-medium text-[#D4E4FA]"
-          >
-            Completar &apos;Fecha de Promulgación&apos; faltante en metadatos
-          </label>
-        </div>
-
-        <div className="flex cursor-not-allowed items-start gap-3 opacity-30">
-          <Checkbox
-            id="c3"
-            disabled
-            className="mt-0.5 h-4 w-4 rounded-sm border-[#404551] bg-[#404551]"
-          />
-          <label
-            htmlFor="c3"
-            className="cursor-not-allowed text-[13px] leading-snug font-medium text-white"
-          >
-            Verificar texto íntegro Art. 1.196
-          </label>
-        </div>
-
-        <div className="flex cursor-not-allowed items-start gap-3 opacity-30">
-          <Checkbox
-            id="c4"
-            disabled
-            className="mt-0.5 h-4 w-4 rounded-sm border-[#404551] bg-[#404551]"
-          />
-          <label
-            htmlFor="c4"
-            className="cursor-not-allowed text-[13px] leading-snug font-medium text-white"
-          >
-            Verificar texto íntegro Art. 1.196
-          </label>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -1,8 +1,12 @@
 'use client'
 
+import { useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Eye, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+
+import { deleteDocumentAction } from '@/app/actions/documents'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -22,8 +26,21 @@ type DocumentActionsProps = {
 }
 
 export function DocumentActions({ documentId, variant = 'icons' }: DocumentActionsProps) {
+  const [, startTransition] = useTransition()
+  const router = useRouter()
+
   const handleDelete = () => {
-    toast.info('Eliminación pendiente de integración con el backend.')
+    startTransition(async () => {
+      const result = await deleteDocumentAction(documentId)
+      if (result.success) {
+        toast.success('Documento eliminado correctamente.')
+        router.refresh()
+      } else {
+        toast.error('Error al eliminar el documento', {
+          description: result.error,
+        })
+      }
+    })
   }
 
   const viewLink = `/curador/correcciones/${documentId}`
@@ -95,8 +112,7 @@ function DeleteDialog({
         <DialogHeader>
           <DialogTitle>¿Eliminar documento?</DialogTitle>
           <DialogDescription>
-            Esta acción no se puede deshacer. El documento se eliminará permanentemente cuando el
-            endpoint esté disponible.
+            Esta acción no se puede deshacer. El documento se eliminará permanentemente.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

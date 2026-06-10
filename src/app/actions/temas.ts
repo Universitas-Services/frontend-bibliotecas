@@ -1,6 +1,6 @@
 'use server'
 
-import { apiPost, apiGet } from '@/lib/api-client'
+import { apiPost, apiGet, apiDelete } from '@/lib/api-client'
 import { revalidatePath } from 'next/cache'
 
 export interface CrearTemaResponse {
@@ -159,4 +159,22 @@ export async function getTiposNormaAction(subcarpetaId: string): Promise<Carpeta
   }
 
   return []
+}
+
+export async function eliminarTemaAction(temaId: string): Promise<CrearTemaResponse> {
+  const result = await apiDelete(`/admin/storage/tema/${temaId}`)
+
+  if (!result.success) {
+    return {
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  revalidatePath('/admin/taxonomia/temas')
+  revalidatePath('/curador/nueva-carga')
+
+  return { data: result.data }
 }

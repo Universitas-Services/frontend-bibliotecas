@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Edit, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -15,6 +17,8 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { TemaPrincipal, Especialista } from './mock-data'
 import { AsignarRevisoresSheet } from './asignar-revisores-sheet'
+import { asignarPersonalAction, removerPersonalAction } from '@/app/actions/personal'
+import { eliminarTemaAction } from '@/app/actions/temas'
 
 interface TemasTableProps {
   initialTemas: TemaPrincipal[]
@@ -24,6 +28,26 @@ export function TemasTable({ initialTemas }: TemasTableProps) {
   const [temas, setTemas] = useState<TemaPrincipal[]>(initialTemas)
   const [selectedTema, setSelectedTema] = useState<TemaPrincipal | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
+  const handleDelete = (temaId: string) => {
+    const confirmed = window.confirm('¿Está seguro de que desea eliminar este tema?')
+    if (!confirmed) return
+
+    startTransition(async () => {
+      const result = await eliminarTemaAction(temaId)
+      if (result.data) {
+        toast.success('Tema eliminado correctamente.')
+        setTemas(temas.filter((t) => t.id !== temaId))
+        router.refresh()
+      } else {
+        toast.error('Error al eliminar el tema', {
+          description: result.error,
+        })
+      }
+    })
+  }
 
   const handleEditClick = (tema: TemaPrincipal) => {
     setSelectedTema(tema)
@@ -31,7 +55,39 @@ export function TemasTable({ initialTemas }: TemasTableProps) {
   }
 
   const handleSaveRevisores = (temaId: string, revisores: Especialista[]) => {
-    setTemas(temas.map((t) => (t.id === temaId ? { ...t, revisoresAsignados: revisores } : t)))
+    const temaActual = temas.find((t) => t.id === temaId)
+    const previousIds = new Set(temaActual?.revisoresAsignados.map((r) => r.id) || [])
+    const newIds = new Set(revisores.map((r) => r.id))
+
+    startTransition(async () => {
+      const errors: string[] = []
+
+      for (const userId of newIds) {
+        if (!previousIds.has(userId)) {
+          const result = await asignarPersonalAction(temaId, userId)
+          if (!result.success) errors.push(result.error)
+        }
+      }
+
+      for (const userId of previousIds) {
+        if (!newIds.has(userId)) {
+          const result = await removerPersonalAction(temaId, userId)
+          if (!result.success) errors.push(result.error)
+        }
+      }
+
+      if (errors.length > 0) {
+        toast.error('Error al guardar asignaciones', {
+          description: errors.join('\n'),
+        })
+        return
+      }
+
+      setTemas(temas.map((t) => (t.id === temaId ? { ...t, revisoresAsignados: revisores } : t)))
+      setIsSheetOpen(false)
+      toast.success('Personal asignado correctamente.')
+      router.refresh()
+    })
   }
 
   const toggleStatus = (temaId: string) => {
@@ -99,6 +155,8 @@ export function TemasTable({ initialTemas }: TemasTableProps) {
                   <Button
                     variant="ghost"
                     size="icon"
+                    disabled={isPending}
+                    onClick={() => handleDelete(tema.id)}
                     className="h-8 w-8 border border-transparent text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -115,6 +173,7 @@ export function TemasTable({ initialTemas }: TemasTableProps) {
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
         onSave={handleSaveRevisores}
+        isSaving={isPending}
       />
     </div>
   )

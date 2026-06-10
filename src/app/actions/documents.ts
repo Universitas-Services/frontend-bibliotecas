@@ -4,6 +4,7 @@ import { getApiBaseUrl } from '@/lib/api'
 import {
   apiGet,
   apiPostFormData,
+  apiPutFormData,
   getApiErrorMessage,
   getAuthFailure,
   getBearerToken,
@@ -126,4 +127,49 @@ export async function getDocumentByIdAction(documentId: string) {
     const message = error instanceof Error ? error.message : 'Error de conexión.'
     return { success: false, error: message }
   }
+}
+
+export async function deleteDocumentAction(documentId: string) {
+  try {
+    const token = await getBearerToken()
+    if (!token) {
+      const failure = await getAuthFailure()
+      return { success: false, error: failure.error }
+    }
+
+    const res = await fetch(`${getApiBaseUrl()}/documentos/${documentId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      return {
+        success: false,
+        error: getApiErrorMessage(data, 'Error al eliminar el documento.'),
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error de conexión.'
+    return { success: false, error: message }
+  }
+}
+
+export async function updateDocumentAction(id: string, formData: FormData) {
+  const result = await apiPutFormData(`/documentos/editar/${id}`, formData)
+
+  if (!result.success) {
+    return {
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  return { success: true, data: result.data }
 }

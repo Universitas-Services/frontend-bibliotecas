@@ -1,13 +1,25 @@
 'use client'
 
-import { useRef, useState, useTransition, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRef, useState, useTransition, useCallback, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { uploadDocumentAction } from '@/app/actions/documents'
-import { createMetadataAction, type CreateMetadataPayload } from '@/app/actions/metadatas'
+import {
+  uploadDocumentAction,
+  updateDocumentAction,
+  getDocumentByIdAction,
+} from '@/app/actions/documents'
+import { uploadBorradorAction } from '@/app/actions/curador-documents'
+import {
+  createMetadataAction,
+  updateMetadataAction,
+  getMetadataByDocumentIdAction,
+  type CreateMetadataPayload,
+} from '@/app/actions/metadatas'
+import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
 import {
   formatUploadValidationIssues,
+  validateBorradorForm,
   validateDocumentUploadForm,
 } from '@/lib/document-upload-validation'
 import {
@@ -25,11 +37,40 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 
+type InitialCategoria = string | { id?: string; _id?: string; nombre?: string }
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined
+}
+
+function readInitialCategorias(value: unknown): InitialCategoria[] | undefined {
+  if (!Array.isArray(value)) return undefined
+
+  return value.filter(
+    (item): item is InitialCategoria =>
+      typeof item === 'string' || (typeof item === 'object' && item !== null),
+  )
+}
+
 export default function NuevaCargaPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('edit')
+
   const formRef = useRef<HTMLFormElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // Edit mode state
+  const [initialData, setInitialData] = useState<{
+    documento: Record<string, unknown>
+    metadata: Record<string, unknown> | null
+  } | null>(null)
+  const [isLoadingInitial, setIsLoadingInitial] = useState(!!editId)
 
   // Classification state from child component
   const [classification, setClassification] = useState<ClassificationValues>({
@@ -45,6 +86,45 @@ export default function NuevaCargaPage() {
     setClassification(values)
   }, [])
 
+  // Fetch initial data if in edit mode
+  useEffect(() => {
+    if (!editId) return
+
+    async function loadInitialData() {
+      try {
+        const [docRes, metaRes] = await Promise.all([
+          getDocumentByIdAction(editId!),
+          getMetadataByDocumentIdAction(editId!),
+        ])
+
+        if (docRes.success) {
+          setInitialData({
+            documento: (docRes.data ?? {}) as Record<string, unknown>,
+            metadata: metaRes.success && metaRes.data ? metaRes.data : null,
+          })
+          // Pre-populate classification names so DocumentClassification can auto-select IDs
+          if (metaRes.success && metaRes.data) {
+            setClassification((prev) => ({
+              ...prev,
+              temaPrincipalNombre: (metaRes.data.temaPrincipal as string) || '',
+              tipoDocumentoNombre: (metaRes.data.tipoDocumento as string) || '',
+              tipoNormaNombre: (metaRes.data.tipoNorma as string) || '',
+            }))
+          }
+        } else {
+          toast.error('Error al cargar el documento original', { description: docRes.error })
+        }
+      } catch (err) {
+        console.error('Error fetching edit data:', err)
+        toast.error('Error de conexión al cargar los datos')
+      } finally {
+        setIsLoadingInitial(false)
+      }
+    }
+
+    loadInitialData()
+  }, [editId])
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -52,7 +132,7 @@ export default function NuevaCargaPage() {
       return
     }
 
-    if (!selectedFile) {
+    if (!selectedFile && !editId) {
       toast.error('Debe seleccionar un archivo PDF o DOC antes de publicar.')
       return
     }
@@ -75,53 +155,48 @@ export default function NuevaCargaPage() {
     const categorias = outbound.getAll('categoriaIds')
     // Remove from outbound so it doesn't mess with other parts, we will handle it in uploadFormData
 
-    outbound.set('file', selectedFile, selectedFile.name)
+    if (selectedFile) {
+      outbound.set('file', selectedFile, selectedFile.name)
+    }
 
     const validationIssues = validateDocumentUploadForm(outbound)
-    if (validationIssues.length > 0) {
+    // Ignore file validation if we are editing and no new file was selected
+    const filteredIssues =
+      editId && !selectedFile
+        ? validationIssues.filter((i) => i.field !== 'file')
+        : validationIssues
+
+    if (filteredIssues.length > 0) {
       toast.error('Complete los campos obligatorios', {
-        description: formatUploadValidationIssues(validationIssues),
+        description: formatUploadValidationIssues(filteredIssues),
         duration: 10000,
       })
       return
     }
 
     startTransition(async () => {
-      // Step 1: Upload the document
-      // Create a clean FormData for the upload endpoint to avoid "property should not exist" errors
-      const uploadFormData = new FormData()
-      uploadFormData.set('file', selectedFile, selectedFile.name)
-      uploadFormData.set('titulo', (outbound.get('titulo') as string) || '')
-      uploadFormData.set('tituloIntegro', (outbound.get('tituloIntegro') as string) || '')
-      uploadFormData.set('nombreBreve', (outbound.get('nombreBreve') as string) || '')
-
-      // Añadimos los campos que el backend exige obligatoriamente en el endpoint de subida
-      uploadFormData.set(
-        'temaPrincipal',
-        classification.temaPrincipalNombre || (outbound.get('temaPrincipal') as string) || '',
-      )
-      uploadFormData.set(
-        'tipoNorma',
-        classification.tipoNormaNombre || (outbound.get('tipoNorma') as string) || '',
-      )
-      uploadFormData.set('enteEmisor', (outbound.get('enteEmisor') as string) || '')
-      uploadFormData.set('fechaPublicacion', (outbound.get('fechaPublicacion') as string) || '')
-
-      // Send multiple 'categoriaIds' fields so the backend parses it as an array
-      categorias.forEach((cat) => {
-        if (cat) uploadFormData.append('categoriaIds', cat)
+      const uploadFormData = buildDocumentMultipartPayload({
+        outbound,
+        categorias,
+        classification,
+        file: selectedFile,
       })
 
-      const uploadResponse = await uploadDocumentAction(uploadFormData)
+      // Execute Update or Upload
+      const documentResponse = editId
+        ? await updateDocumentAction(editId, uploadFormData)
+        : await uploadDocumentAction(uploadFormData)
 
-      if (uploadResponse.error) {
+      if (documentResponse.error) {
         const isAuth =
-          uploadResponse.status === 401 ||
-          uploadResponse.code === 'TOKEN_EXPIRED' ||
-          uploadResponse.code === 'NO_TOKEN'
-        const statusLabel = uploadResponse.status ? ` (${uploadResponse.status})` : ''
-        toast.error(`Error al subir el documento${statusLabel}`, {
-          description: [uploadResponse.error, uploadResponse.details].filter(Boolean).join('\n'),
+          documentResponse.status === 401 ||
+          documentResponse.code === 'TOKEN_EXPIRED' ||
+          documentResponse.code === 'NO_TOKEN'
+        const statusLabel = documentResponse.status ? ` (${documentResponse.status})` : ''
+        toast.error(`Error al ${editId ? 'actualizar' : 'subir'} el documento${statusLabel}`, {
+          description: [documentResponse.error, documentResponse.details]
+            .filter(Boolean)
+            .join('\n'),
           duration: 15000,
           action: isAuth
             ? {
@@ -133,12 +208,13 @@ export default function NuevaCargaPage() {
         return
       }
 
-      // Step 2: Extract documentoId from the upload response
-      const uploadData = uploadResponse.data as Record<string, unknown> | null
+      // Step 2: Extract documentoId
+      const responseData = documentResponse.data as Record<string, unknown> | null
       const documentoId =
-        (uploadData?.id as string) ||
-        (uploadData?.documentoId as string) ||
-        (uploadData?._id as string) ||
+        editId ||
+        (responseData?.id as string) ||
+        (responseData?.documentoId as string) ||
+        (responseData?._id as string) ||
         ''
 
       if (!documentoId) {
@@ -171,24 +247,105 @@ export default function NuevaCargaPage() {
         pais: (outbound.get('pais') as string) || '',
       }
 
-      const metadataResponse = await createMetadataAction(metadataPayload)
+      const metadataId = readString(initialData?.metadata?.id)
+      const metadataResponse =
+        editId && metadataId
+          ? await updateMetadataAction(metadataId, metadataPayload)
+          : await createMetadataAction(metadataPayload)
 
       if (!metadataResponse.success) {
         toast.warning(
-          'Documento subido correctamente, pero hubo un error al guardar los metadatos.',
+          `Documento ${editId ? 'actualizado' : 'subido'} correctamente, pero hubo un error al guardar los metadatos.`,
           {
             description: metadataResponse.error,
             duration: 15000,
           },
         )
       } else {
-        toast.success('¡Documento cargado y metadatos guardados exitosamente!')
+        toast.success(
+          `¡Documento ${editId ? 'actualizado' : 'cargado'} y metadatos guardados exitosamente!`,
+        )
       }
 
       setTimeout(() => {
         router.push('/curador/gestion-documental')
       }, 800)
     })
+  }
+
+  const handleSaveBorrador = () => {
+    if (isPending) return
+
+    if (!selectedFile) {
+      toast.error('Debe seleccionar un archivo PDF o DOC antes de guardar el borrador.')
+      return
+    }
+
+    const form = formRef.current
+    if (!form) return
+
+    const outbound = new FormData(form)
+    const tituloIntegro = (outbound.get('tituloIntegro') as string) || ''
+
+    if (!outbound.get('titulo') && tituloIntegro) {
+      outbound.set('titulo', tituloIntegro)
+    }
+    if (!outbound.get('nombreBreve')) {
+      outbound.set('nombreBreve', tituloIntegro || 'Sin alias')
+    }
+
+    const validationIssues = validateBorradorForm(outbound)
+    if (validationIssues.length > 0) {
+      toast.error('Complete los campos obligatorios', {
+        description: formatUploadValidationIssues(validationIssues),
+        duration: 10000,
+      })
+      return
+    }
+
+    startTransition(async () => {
+      const categorias = outbound.getAll('categoriaIds')
+      const borradorFormData = buildDocumentMultipartPayload({
+        outbound,
+        categorias,
+        classification,
+        file: selectedFile,
+      })
+
+      const response = await uploadBorradorAction(borradorFormData)
+
+      if (response.error) {
+        const isAuth =
+          response.status === 401 ||
+          response.code === 'TOKEN_EXPIRED' ||
+          response.code === 'NO_TOKEN'
+        toast.error('Error al guardar el borrador', {
+          description: [response.error, response.details].filter(Boolean).join('\n'),
+          duration: 15000,
+          action: isAuth
+            ? {
+                label: 'Iniciar sesión',
+                onClick: () => router.push('/login?logout=1'),
+              }
+            : undefined,
+        })
+        return
+      }
+
+      toast.success('Borrador guardado correctamente.')
+      setTimeout(() => {
+        router.push('/curador/gestion-documental?estado=borradores')
+      }, 800)
+    })
+  }
+
+  if (isLoadingInitial) {
+    return (
+      <div className="flex h-[80vh] flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-[#005496]" />
+        <p className="text-sm text-gray-500">Cargando datos del documento...</p>
+      </div>
+    )
   }
 
   return (
@@ -198,19 +355,30 @@ export default function NuevaCargaPage() {
       onSubmit={handleSubmit}
       className="min-h-full bg-[#F8FAFC] p-8"
     >
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-7xl pb-24">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
           {/* Main column */}
           <div className="flex flex-col gap-6 lg:col-span-8">
             {/* 1. Clasificación del documento (NEW - first section) */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
-                Clasificación del documento
+                {editId ? 'Clasificación del documento (Edición)' : 'Clasificación del documento'}
                 <span className="rounded-sm bg-red-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-700 uppercase">
                   Requerido
                 </span>
               </h2>
-              <DocumentClassification onChange={handleClassificationChange} />
+              <DocumentClassification
+                onChange={handleClassificationChange}
+                initialValues={
+                  initialData?.metadata
+                    ? {
+                        temaPrincipalNombre: readString(initialData.metadata.temaPrincipal),
+                        tipoDocumentoNombre: readString(initialData.metadata.tipoDocumento),
+                        tipoNormaNombre: readString(initialData.metadata.tipoNorma),
+                      }
+                    : undefined
+                }
+              />
             </Card>
 
             {/* 2. Fuente documental (Upload) */}
@@ -221,13 +389,29 @@ export default function NuevaCargaPage() {
                   Requerido
                 </span>
               </h2>
-              <UploadZone disabled={isPending} onFileSelected={setSelectedFile} />
+              <UploadZone
+                disabled={isPending}
+                onFileSelected={setSelectedFile}
+                initialFileName={editId ? 'Documento original cargado' : undefined}
+                initialOcr={readBoolean(initialData?.documento?.soloLecturaImagen)}
+              />
             </Card>
 
             {/* 3. Identificación legal */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Identificación legal</h2>
-              <LegalIdentification />
+              <LegalIdentification
+                initialValues={
+                  initialData?.documento
+                    ? {
+                        tituloIntegro:
+                          readString(initialData.documento.tituloIntegro) ||
+                          readString(initialData.documento.titulo),
+                        nombreBreve: readString(initialData.documento.nombreBreve),
+                      }
+                    : undefined
+                }
+              />
             </Card>
 
             {/* 4. Metadatos del documento (MOVED from sidebar to main body) */}
@@ -238,13 +422,31 @@ export default function NuevaCargaPage() {
                   Requerido
                 </span>
               </h2>
-              <MetadataForm tipoDocumentoNombre={classification.tipoDocumentoNombre} />
+              <MetadataForm
+                tipoDocumentoNombre={classification.tipoDocumentoNombre}
+                initialValues={
+                  initialData?.metadata
+                    ? {
+                        ambitoTerritorial: readString(initialData.metadata.ambitoTerritorial),
+                        numeroGaceta: readString(initialData.metadata.numeroGaceta),
+                        pais: readString(initialData.metadata.pais),
+                        enteEmisor: readString(initialData.metadata.enteEmisor),
+                        fechaPublicacion: readString(initialData.metadata.fechaPublicacion),
+                      }
+                    : undefined
+                }
+              />
             </Card>
 
             {/* 5. Categorías */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Categorías</h2>
-              <TaxonomySection />
+              <TaxonomySection
+                initialCategorias={
+                  readInitialCategorias(initialData?.documento?.categorias) ||
+                  readInitialCategorias(initialData?.documento?.categoriaIds)
+                }
+              />
             </Card>
 
             {/* 6. Matrices */}
@@ -259,27 +461,6 @@ export default function NuevaCargaPage() {
 
           {/* Sidebar */}
           <div className="flex flex-col gap-6 lg:col-span-4">
-            {/* Submit button */}
-            <Card className="p-6 shadow-sm">
-              <Button
-                type="submit"
-                disabled={isPending}
-                className="h-12 w-full bg-[#005496] text-base font-semibold text-white hover:bg-[#00315C]"
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Publicando...
-                  </>
-                ) : (
-                  'Publicar documento'
-                )}
-              </Button>
-              <p className="mt-3 text-center text-xs text-gray-500">
-                El documento será enviado para revisión automática.
-              </p>
-            </Card>
-
             {/* Grafo Legal card */}
             <Card className="border-none bg-[#001D3D] p-6 text-white shadow-md">
               <div className="flex items-start gap-4">
@@ -311,6 +492,37 @@ export default function NuevaCargaPage() {
 
             <ReformAlert />
           </div>
+        </div>
+      </div>
+
+      {/* Fixed bottom action bar */}
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-end gap-3 px-8 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            className="h-11 px-6 text-sm font-semibold"
+            onClick={handleSaveBorrador}
+          >
+            Guardar borrador
+          </Button>
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="h-11 bg-[#005496] px-8 text-sm font-semibold text-white hover:bg-[#00315C]"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {editId ? 'Actualizando...' : 'Publicando...'}
+              </>
+            ) : editId ? (
+              'Guardar cambios'
+            ) : (
+              'Publicar documento'
+            )}
+          </Button>
         </div>
       </div>
     </form>

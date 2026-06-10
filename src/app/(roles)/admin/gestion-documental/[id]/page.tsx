@@ -1,14 +1,21 @@
-import { DocumentPreview } from '@/components/curador/correcciones/document-preview'
-import { DocumentMetadataCard } from '@/components/curador/correcciones/document-metadata-card'
-import { RevisionHistory } from '@/components/curador/correcciones/revision-history'
-import { RequiredCorrections } from '@/components/curador/correcciones/required-corrections'
-import { CorrectionsFooter } from '@/components/curador/correcciones/corrections-footer'
+import Link from 'next/link'
+
 import { getDocumentByIdAction } from '@/app/actions/documents'
 import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
+import { AdminNotasPanel } from '@/components/admin/gestion-documental/admin-notas-panel'
+import { DocumentMetadataCard } from '@/components/curador/correcciones/document-metadata-card'
+import { DocumentPreview } from '@/components/curador/correcciones/document-preview'
+import { RevisionHistory } from '@/components/curador/correcciones/revision-history'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { mapBackendStatus, DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
 
-export default async function CorreccionesPage({ params }: { params: Promise<{ id: string }> }) {
+type PageProps = {
+  params: Promise<{ id: string }>
+}
+
+export default async function AdminDocumentReviewPage({ params }: PageProps) {
   const { id } = await params
 
   const [documentRes, metadataRes, notasRes] = await Promise.all([
@@ -21,22 +28,43 @@ export default async function CorreccionesPage({ params }: { params: Promise<{ i
   const metadataData = metadataRes.success ? metadataRes.data : null
   const notas = notasRes.success ? notasRes.data : []
 
-  // Combina los datos para la ficha técnica
-  const combinedData = {
-    ...docData,
-    ...metadataData,
+  const combinedData = { ...docData, ...metadataData }
+  const titulo =
+    combinedData?.titulo ||
+    combinedData?.tituloIntegro ||
+    combinedData?.nombreBreve ||
+    'Documento sin título'
+  const estadoBackend = String(combinedData?.estado || 'PENDIENTE_REVISION')
+  const status = mapBackendStatus(estadoBackend)
+  const statusStyle = DOCUMENT_STATUS_STYLES[status]
+
+  const curador = combinedData?.curador as Record<string, unknown> | undefined
+  const curadorNombre = curador
+    ? `${String(curador.nombre || '')} ${String(curador.apellido || '')}`.trim()
+    : typeof combinedData?.curadorNombre === 'string'
+      ? combinedData.curadorNombre
+      : '—'
+
+  if (!documentRes.success) {
+    return (
+      <div className="mx-auto max-w-4xl p-8 text-center">
+        <h2 className="text-lg font-bold text-red-800">No se pudo cargar el documento</h2>
+        <p className="mt-2 text-sm text-red-600">{documentRes.error}</p>
+        <Button asChild className="mt-6">
+          <Link href="/admin/gestion-documental">Volver al listado</Link>
+        </Button>
+      </div>
+    )
   }
 
-  const titulo = combinedData?.titulo || combinedData?.nombreBreve || 'Documento sin título'
-  const estadoBackend = combinedData?.estado || 'EN REVISIÓN'
-
   return (
-    <div className="animate-in fade-in min-h-full bg-[#FAFAFA] pb-24 duration-500">
-      {/* Page Header */}
+    <div className="animate-in fade-in min-h-full bg-[#FAFAFA] pb-12 duration-500">
       <div className="border-b border-[#E5E7EB] bg-white px-6 py-6 md:px-10">
         <div className="mx-auto max-w-[1600px]">
           <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[#C1C7D2] uppercase">
-            <span>Mis Correcciones</span>
+            <Link href="/admin/gestion-documental" className="hover:text-[#005496]">
+              Gestión documental
+            </Link>
             <span>{'>'}</span>
             <span className="max-w-[300px] truncate text-[#005496]">{titulo}</span>
           </div>
@@ -46,44 +74,35 @@ export default async function CorreccionesPage({ params }: { params: Promise<{ i
               <h1 className="mb-2 max-w-[800px] truncate font-['Space_Grotesk'] text-[32px] font-bold tracking-tight text-[#00315C]">
                 {titulo}
               </h1>
-              <p className="text-[14px] font-medium text-[#6B7280]">ID: {id}</p>
+              <p className="text-[14px] font-medium text-[#6B7280]">
+                Curador: {curadorNombre} · ID: {id}
+              </p>
             </div>
 
-            <div className="mt-2 flex items-center gap-3 rounded-md border border-[#FED7AA] bg-[#FFF7ED] px-4 py-2.5 shadow-sm md:mt-0">
-              <span className="flex items-center justify-center rounded-sm bg-[#FEF08A] p-1 text-[#D97706]">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </span>
-              <span className="text-[12px] font-bold tracking-wider text-[#D97706] uppercase">
-                {estadoBackend}
-              </span>
-            </div>
+            <span
+              className={`inline-flex self-start rounded-full px-3 py-1 text-[12px] font-bold ${statusStyle.tableStatusColor}`}
+            >
+              {statusStyle.label}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Main Content Grid */}
       <div className="mx-auto max-w-[1600px] p-6 md:p-10">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-          {/* Left Column: Preview */}
           <div className="lg:sticky lg:top-6 lg:col-span-7 lg:self-start">
             <DocumentPreview documentId={id} />
           </div>
 
-          {/* Right Column: Tabs */}
           <div className="lg:col-span-5 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
-            <Tabs defaultValue="metadata" className="w-full">
+            <Tabs defaultValue="notas" className="w-full">
               <TabsList className="mb-6 grid w-full grid-cols-3 rounded-md bg-[#E5E7EB] p-1">
+                <TabsTrigger
+                  value="notas"
+                  className="rounded-sm py-2 text-[13px] font-bold data-[state=active]:bg-[#00315C] data-[state=active]:text-white"
+                >
+                  Notas
+                </TabsTrigger>
                 <TabsTrigger
                   value="metadata"
                   className="rounded-sm py-2 text-[13px] font-bold data-[state=active]:bg-[#00315C] data-[state=active]:text-white"
@@ -96,13 +115,11 @@ export default async function CorreccionesPage({ params }: { params: Promise<{ i
                 >
                   Historial
                 </TabsTrigger>
-                <TabsTrigger
-                  value="tasks"
-                  className="rounded-sm py-2 text-[13px] font-bold data-[state=active]:bg-[#00315C] data-[state=active]:text-white"
-                >
-                  Correcciones
-                </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="notas" className="mt-0 outline-none">
+                <AdminNotasPanel documentoId={id} initialNotas={notas} />
+              </TabsContent>
 
               <TabsContent value="metadata" className="mt-0 outline-none">
                 <DocumentMetadataCard document={combinedData} />
@@ -111,18 +128,10 @@ export default async function CorreccionesPage({ params }: { params: Promise<{ i
               <TabsContent value="history" className="mt-0 outline-none">
                 <RevisionHistory notas={notas} />
               </TabsContent>
-
-              <TabsContent value="tasks" className="mt-0 outline-none">
-                <div className="flex flex-col">
-                  <RequiredCorrections notas={notas} />
-                </div>
-              </TabsContent>
             </Tabs>
           </div>
         </div>
       </div>
-
-      <CorrectionsFooter />
     </div>
   )
 }

@@ -74,6 +74,20 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
   return issues
 }
 
+export function validateBorradorForm(formData: FormData): UploadValidationIssue[] {
+  const issues: UploadValidationIssue[] = []
+  const tituloIntegro = String(formData.get('tituloIntegro') ?? '').trim()
+
+  if (!tituloIntegro) {
+    issues.push({
+      field: 'tituloIntegro',
+      message: 'El título oficial es obligatorio para guardar el borrador.',
+    })
+  }
+
+  return issues
+}
+
 export function formatUploadValidationIssues(issues: UploadValidationIssue[]): string {
   return issues.map((issue) => issue.message).join(' ')
 }

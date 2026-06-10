@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { FileText, Info } from 'lucide-react'
 
+import { Combobox } from '@/components/ui/combobox'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -14,10 +15,57 @@ import {
 
 interface MetadataFormProps {
   tipoDocumentoNombre: string
+  initialValues?: {
+    ambitoTerritorial?: string
+    numeroGaceta?: string
+    pais?: string
+    enteEmisor?: string
+    fechaPublicacion?: string
+  }
 }
 
-export function MetadataForm({ tipoDocumentoNombre }: MetadataFormProps) {
-  const [ambitoTerritorial, setAmbitoTerritorial] = useState('')
+const COUNTRY_OPTIONS = [
+  'Venezuela',
+  'Colombia',
+  'Ecuador',
+  'Perú',
+  'Bolivia',
+  'Chile',
+  'Argentina',
+  'Uruguay',
+  'Paraguay',
+  'Brasil',
+  'México',
+  'Guatemala',
+  'Honduras',
+  'El Salvador',
+  'Nicaragua',
+  'Costa Rica',
+  'Panamá',
+  'Cuba',
+  'República Dominicana',
+  'Puerto Rico',
+  'España',
+  'Estados Unidos',
+  'Canadá',
+  'Portugal',
+  'Francia',
+  'Italia',
+  'Alemania',
+  'Reino Unido',
+  'China',
+  'Japón',
+  'Corea del Sur',
+  'India',
+  'Australia',
+  'Rusia',
+  'Sudáfrica',
+].map((name) => ({ value: name, label: name }))
+
+export function MetadataForm({ tipoDocumentoNombre, initialValues }: MetadataFormProps) {
+  const [ambitoTerritorial, setAmbitoTerritorial] = useState(initialValues?.ambitoTerritorial || '')
+  const [numeroGaceta, setNumeroGaceta] = useState(initialValues?.numeroGaceta || '')
+  const [selectedPais, setSelectedPais] = useState(initialValues?.pais || 'Venezuela')
 
   const normalizedTipo = tipoDocumentoNombre.trim().toLowerCase()
   const isLegislacion = normalizedTipo === 'legislación' || normalizedTipo === 'legislacion'
@@ -59,6 +107,17 @@ export function MetadataForm({ tipoDocumentoNombre }: MetadataFormProps) {
     )
   }
 
+  const formatWithThousandSeparator = (value: string) => {
+    const digits = value.replace(/[^\d]/g, '')
+    if (!digits) return ''
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  }
+
+  const handleGacetaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^\d]/g, '')
+    setNumeroGaceta(raw)
+  }
+
   // Legislación fields
   return (
     <div className="space-y-5">
@@ -75,6 +134,7 @@ export function MetadataForm({ tipoDocumentoNombre }: MetadataFormProps) {
         <Input
           name="enteEmisor"
           required
+          defaultValue={initialValues?.enteEmisor || ''}
           placeholder="Ej: Asamblea Nacional, Ministerio de Justicia..."
           className="h-11 border-gray-300 bg-white"
         />
@@ -91,13 +151,18 @@ export function MetadataForm({ tipoDocumentoNombre }: MetadataFormProps) {
             name="fechaPublicacion"
             required
             type="date"
+            defaultValue={
+              initialValues?.fechaPublicacion ? initialValues.fechaPublicacion.split('T')[0] : ''
+            }
             className="h-11 border-gray-300 bg-white"
           />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium text-[#00315C]">N° de Gaceta Oficial</label>
+          <input type="hidden" name="numeroGaceta" value={numeroGaceta} />
           <Input
-            name="numeroGaceta"
+            value={formatWithThousandSeparator(numeroGaceta)}
+            onChange={handleGacetaChange}
             placeholder="Ej: 6.507"
             className="h-11 border-gray-300 bg-white"
           />
@@ -127,11 +192,14 @@ export function MetadataForm({ tipoDocumentoNombre }: MetadataFormProps) {
           País
           <span className="ml-1 text-red-500">*</span>
         </label>
-        <Input
-          name="pais"
-          required
-          placeholder="Ej: Venezuela"
-          className="h-11 border-gray-300 bg-white"
+        <input type="hidden" name="pais" value={selectedPais} />
+        <Combobox
+          options={COUNTRY_OPTIONS}
+          value={selectedPais}
+          onValueChange={setSelectedPais}
+          placeholder="Seleccione un país..."
+          searchPlaceholder="Buscar país..."
+          emptyText="País no encontrado."
         />
       </div>
     </div>

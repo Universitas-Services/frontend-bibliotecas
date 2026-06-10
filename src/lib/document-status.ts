@@ -46,17 +46,56 @@ export const DOCUMENT_STATUS_STYLES: Record<
 }
 
 export function mapBackendStatus(estado: string): DocumentStatus {
-  const normalized = estado.toLowerCase()
+  const normalized = estado.toUpperCase().replace(/\s+/g, '_')
 
-  if (normalized.includes('publicado') || normalized.includes('aprobado')) {
+  if (
+    normalized === 'PUBLICADO' ||
+    normalized.includes('PUBLICADO') ||
+    normalized.includes('VIGENTE') ||
+    normalized.includes('APROBADO') ||
+    normalized.includes('REFORMADA') ||
+    normalized.includes('DEROGADA')
+  ) {
     return 'publicado'
   }
-  if (normalized.includes('borrador')) {
+
+  if (normalized === 'BORRADOR' || normalized.includes('BORRADOR')) {
     return 'borrador'
   }
-  if (normalized.includes('revision') || normalized.includes('revisión')) {
+
+  if (
+    normalized === 'PENDIENTE_REVISION' ||
+    normalized.includes('PENDIENTE') ||
+    normalized.includes('REVISION')
+  ) {
     return 'en-revision'
   }
 
   return 'borrador'
+}
+
+export function mapFilterTabToBackendEstado(tab: DocumentFilterId): string | undefined {
+  switch (tab) {
+    case 'publicados':
+      return 'PUBLICADO'
+    case 'en-revision':
+      return 'PENDIENTE_REVISION'
+    case 'borradores':
+      return 'BORRADOR'
+    default:
+      return undefined
+  }
+}
+
+export function mapTimeFilterToBackend(tiempo: string): string | undefined {
+  switch (tiempo) {
+    case '7d':
+      return '7_DIAS'
+    case '30d':
+      return '30_DIAS'
+    case '90d':
+      return '3_MESES'
+    default:
+      return undefined
+  }
 }
