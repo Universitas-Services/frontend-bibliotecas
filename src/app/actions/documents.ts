@@ -3,6 +3,7 @@
 import { getApiBaseUrl } from '@/lib/api'
 import {
   apiGet,
+  apiPatchFormData,
   apiPostFormData,
   apiPutFormData,
   getApiErrorMessage,
@@ -11,9 +12,25 @@ import {
   normalizeDocumentsList,
   type ApiErrorCode,
 } from '@/lib/api-client'
+import type { BackendEstadoLegal } from '@/lib/document-status'
 
 export async function uploadDocumentAction(formData: FormData) {
   const result = await apiPostFormData('/documentos/upload', formData)
+
+  if (!result.success) {
+    return {
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  return { success: true, data: result.data }
+}
+
+export async function uploadReformaAction(formData: FormData) {
+  const result = await apiPostFormData('/documentos/reforma', formData)
 
   if (!result.success) {
     return {
@@ -172,4 +189,23 @@ export async function updateDocumentAction(id: string, formData: FormData) {
   }
 
   return { success: true, data: result.data }
+}
+
+export async function patchDocumentEstadoLegalAction(id: string, estadoLegal: BackendEstadoLegal) {
+  const formData = new FormData()
+  formData.set('estadoLegal', estadoLegal)
+
+  const result = await apiPatchFormData(`/documentos/${id}`, formData)
+
+  if (!result.success) {
+    return {
+      success: false as const,
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  return { success: true as const, data: result.data }
 }

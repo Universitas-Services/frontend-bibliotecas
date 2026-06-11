@@ -1,5 +1,6 @@
 import { Brush, CheckSquare, LibrarySquare, PlusCircle, XSquare } from 'lucide-react'
 
+import { FeatureUnavailableBanner } from '@/components/admin/feature-unavailable-banner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -26,6 +27,11 @@ export default function AdminEtiquetasPage() {
           Administración profunda de la taxonomía y herramientas de mantenimiento semántico.
         </p>
       </div>
+
+      <FeatureUnavailableBanner
+        title="Módulo en diseño — sin conexión al backend"
+        description="Esta pantalla es un prototipo visual. La fusión de etiquetas, limpieza de keywords y bandeja de sugerencias semánticas se habilitará cuando el backend exponga los endpoints correspondientes."
+      />
 
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
         <div className="flex flex-col gap-8 lg:col-span-8">

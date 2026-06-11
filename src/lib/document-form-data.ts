@@ -1,7 +1,11 @@
+import { parseMatrizBIdsFromForm } from '@/lib/document-matrices'
+
 export type DocumentClassificationFields = {
   temaPrincipalNombre?: string
   tipoNormaNombre?: string
 }
+
+const VALID_ESTADO_LEGAL = new Set(['VIGENTE', 'REFORMADA', 'DEROGADA'])
 
 type BuildDocumentMultipartOptions = {
   outbound: FormData
@@ -36,6 +40,42 @@ export function buildDocumentMultipartPayload({
   )
   formData.set('enteEmisor', (outbound.get('enteEmisor') as string) || '')
   formData.set('fechaPublicacion', (outbound.get('fechaPublicacion') as string) || '')
+
+  const resumen = (outbound.get('resumen') as string) || ''
+  if (resumen) {
+    formData.set('resumen', resumen)
+  }
+
+  const keywords = outbound
+    .getAll('keywords')
+    .filter((keyword) => keyword)
+    .map(String)
+  if (keywords.length > 0) {
+    formData.set('keywords', keywords.join(','))
+  }
+
+  const soloLecturaImagen = outbound.get('soloLecturaImagen')
+  if (soloLecturaImagen === 'true' || soloLecturaImagen === 'on') {
+    formData.set('soloLecturaImagen', 'true')
+  }
+
+  const matrizAId = (outbound.get('matrizAId') as string) || ''
+  if (matrizAId) formData.set('matrizAId', matrizAId)
+
+  const matrizBIds = parseMatrizBIdsFromForm(outbound)
+  if (matrizBIds.length > 0) {
+    formData.set('matrizBIds', matrizBIds.join(','))
+  }
+
+  const estadoLegal = String(outbound.get('estadoLegal') ?? '')
+    .trim()
+    .toUpperCase()
+  if (VALID_ESTADO_LEGAL.has(estadoLegal)) {
+    formData.set('estadoLegal', estadoLegal)
+  }
+
+  const leyViejaId = (outbound.get('leyViejaId') as string) || ''
+  if (leyViejaId) formData.set('leyViejaId', leyViejaId)
 
   const categoriaIds = categorias.filter((cat) => cat).map(String)
   if (categoriaIds.length > 0) {

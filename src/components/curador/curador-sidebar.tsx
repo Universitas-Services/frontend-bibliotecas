@@ -17,8 +17,10 @@ import {
   SidebarGroupContent,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
+import { getProfilePathForRole } from '@/lib/role-labels'
+import { formatSessionDisplayName, type SessionUser } from '@/lib/session-shared'
 
 const navItems = [
   {
@@ -44,8 +46,16 @@ const iconBtn =
 
 const iconMenu = 'group-data-[collapsible=icon]:items-center'
 
-export function CuradorSidebar() {
+type CuradorSidebarProps = {
+  user?: SessionUser | null
+}
+
+export function CuradorSidebar({ user }: CuradorSidebarProps) {
   const pathname = usePathname()
+  const displayName = formatSessionDisplayName(user)
+  const roleLabel = user?.role || 'CURADOR'
+  const initials = user?.initials || 'CU'
+  const profilePath = getProfilePathForRole(roleLabel)
 
   return (
     <Sidebar collapsible="icon" className="border-border border-r bg-[#F8FAFC]">
@@ -163,19 +173,27 @@ export function CuradorSidebar() {
         <SidebarMenu className={iconMenu}>
           <SidebarMenuItem className={iconMenu}>
             <SidebarMenuButton
-              tooltip="Dr. Silva — CURADOR"
-              className={cn('h-auto w-full py-2 hover:bg-transparent', iconBtn)}
+              asChild
+              tooltip={`Ver perfil — ${displayName}`}
+              className={cn(
+                'h-auto w-full py-2 hover:bg-gray-100',
+                pathname === profilePath && 'bg-gray-100',
+                iconBtn,
+              )}
             >
-              <Avatar className="h-9 w-9 shrink-0 border border-gray-200">
-                <AvatarImage src="https://github.com/shadcn.png" alt="User avatar" />
-                <AvatarFallback className="bg-gray-800 text-xs text-white">DS</AvatarFallback>
-              </Avatar>
-              <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
-                <span className="truncate text-sm font-medium text-[#499DFE]">Dr. Silva</span>
-                <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">
-                  CURADOR
-                </span>
-              </div>
+              <Link href={profilePath} className="flex items-center gap-2">
+                <Avatar className="h-9 w-9 shrink-0 border border-gray-200">
+                  <AvatarFallback className="bg-gray-800 text-xs text-white">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
+                  <span className="truncate text-sm font-medium text-[#499DFE]">{displayName}</span>
+                  <span className="text-[10px] font-bold tracking-widest text-gray-500 uppercase">
+                    {roleLabel}
+                  </span>
+                </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem className={iconMenu}>

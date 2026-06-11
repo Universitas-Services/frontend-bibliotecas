@@ -1,57 +1,39 @@
-'use client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts'
 
-const data = [
-  { name: 'Lun', cargas: 80, aprobaciones: 50 },
-  { name: 'Mar', cargas: 120, aprobaciones: 100 },
-  { name: 'Mié', cargas: 110, aprobaciones: 100 },
-  { name: 'Jue', cargas: 180, aprobaciones: 150 },
-  { name: 'Vie', cargas: 120, aprobaciones: 100 },
-  { name: 'Sáb', cargas: 60, aprobaciones: 40 },
-  { name: 'Dom', cargas: 30, aprobaciones: 20 },
-]
+import type { WeeklyActivityPoint } from '@/lib/curador-dashboard'
 
-export function WeeklyActivityChart() {
+type WeeklyActivityChartProps = {
+  data: WeeklyActivityPoint[]
+}
+
+export function WeeklyActivityChart({ data }: WeeklyActivityChartProps) {
+  const maxCount = Math.max(...data.map((point) => point.count), 1)
+
   return (
-    <Card className="col-span-1 border-[#C1C7D2] shadow-sm md:col-span-2">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg font-bold text-[#0F1D30]">Actividad Semanal</CardTitle>
-        <div className="flex items-center gap-4 text-xs font-medium text-[#6B7280]">
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded-full bg-[#005496]" /> Cargas
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="h-3 w-3 rounded-full bg-[#D4E4FA]" /> Aprobaciones
-          </div>
-        </div>
+    <Card className="border-[#C1C7D2] shadow-sm md:col-span-2">
+      <CardHeader>
+        <CardTitle className="text-lg font-bold text-[#0F1D30]">Actividad semanal</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mt-6 h-[280px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barGap={-25}>
-              <XAxis
-                dataKey="name"
-                stroke="#6B7280"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                dy={10}
-              />
-              <YAxis stroke="#6B7280" fontSize={12} tickLine={false} axisLine={false} hide />
-              <Tooltip
-                cursor={{ fill: '#F3F4F6' }}
-                contentStyle={{
-                  borderRadius: '8px',
-                  border: '1px solid #C1C7D2',
-                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        <div className="flex h-48 items-end justify-between gap-2">
+          {data.map((point) => (
+            <div key={point.day} className="flex flex-1 flex-col items-center gap-2">
+              <div
+                className="w-full rounded-t-md bg-[#005496] transition-all"
+                style={{
+                  height: `${Math.max(8, (point.count / maxCount) * 100)}%`,
+                  minHeight: point.count > 0 ? '12px' : '4px',
+                  opacity: point.count > 0 ? 1 : 0.2,
                 }}
               />
-              <Bar dataKey="cargas" fill="#D4E4FA" radius={[4, 4, 0, 0]} barSize={40} />
-              <Bar dataKey="aprobaciones" fill="#00315C" radius={[4, 4, 0, 0]} barSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
+              <span className="text-xs font-medium text-[#6B7280]">{point.day}</span>
+              <span className="text-[10px] text-[#9CA3AF]">{point.count}</span>
+            </div>
+          ))}
         </div>
+        <p className="mt-4 text-xs text-[#6B7280]">
+          Documentos actualizados en los últimos 7 días según su gestión documental.
+        </p>
       </CardContent>
     </Card>
   )

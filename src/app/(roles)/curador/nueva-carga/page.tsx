@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import {
   uploadDocumentAction,
+  uploadReformaAction,
   updateDocumentAction,
   getDocumentByIdAction,
 } from '@/app/actions/documents'
@@ -16,7 +17,9 @@ import {
   getMetadataByDocumentIdAction,
   type CreateMetadataPayload,
 } from '@/app/actions/metadatas'
+import { EstadoLegalField } from '@/components/shared/estado-legal-field'
 import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
+import { extractDocumentMatrices } from '@/lib/document-matrices'
 import {
   formatUploadValidationIssues,
   validateBorradorForm,
@@ -33,9 +36,11 @@ import { ReformAlert } from '@/components/curador/nueva-carga/reform-alert'
 import { SeoSection } from '@/components/curador/nueva-carga/seo-section'
 import { TaxonomySection } from '@/components/curador/nueva-carga/taxonomy-section'
 import { UploadZone } from '@/components/curador/nueva-carga/upload-zone'
+import { CuradorBottomBar } from '@/components/curador/curador-bottom-bar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
+import Link from 'next/link'
 
 type InitialCategoria = string | { id?: string; _id?: string; nombre?: string }
 
@@ -85,6 +90,10 @@ export default function NuevaCargaPage() {
   const handleClassificationChange = useCallback((values: ClassificationValues) => {
     setClassification(values)
   }, [])
+
+  const initialMatrices = initialData
+    ? extractDocumentMatrices(initialData.documento)
+    : { matrizAId: undefined, matrizBIds: [] as string[] }
 
   // Fetch initial data if in edit mode
   useEffect(() => {
@@ -174,6 +183,19 @@ export default function NuevaCargaPage() {
       return
     }
 
+    const isReforma = outbound.get('esReforma') === 'true'
+    const leyViejaId = String(outbound.get('leyViejaId') ?? '').trim()
+
+    if (isReforma && !leyViejaId) {
+      toast.error('Seleccione la ley original que está siendo reformada.')
+      return
+    }
+
+    if (isReforma && editId) {
+      toast.error('La edición como reforma aún no está disponible. Cree una nueva carga.')
+      return
+    }
+
     startTransition(async () => {
       const uploadFormData = buildDocumentMultipartPayload({
         outbound,
@@ -182,10 +204,12 @@ export default function NuevaCargaPage() {
         file: selectedFile,
       })
 
-      // Execute Update or Upload
+      // Execute Update, Reforma or Upload
       const documentResponse = editId
         ? await updateDocumentAction(editId, uploadFormData)
-        : await uploadDocumentAction(uploadFormData)
+        : isReforma
+          ? await uploadReformaAction(uploadFormData)
+          : await uploadDocumentAction(uploadFormData)
 
       if (documentResponse.error) {
         const isAuth =
@@ -276,7 +300,7 @@ export default function NuevaCargaPage() {
   const handleSaveBorrador = () => {
     if (isPending) return
 
-    if (!selectedFile) {
+    if (!selectedFile && !editId) {
       toast.error('Debe seleccionar un archivo PDF o DOC antes de guardar el borrador.')
       return
     }
@@ -312,7 +336,9 @@ export default function NuevaCargaPage() {
         file: selectedFile,
       })
 
-      const response = await uploadBorradorAction(borradorFormData)
+      const response = editId
+        ? await updateDocumentAction(editId, borradorFormData)
+        : await uploadBorradorAction(borradorFormData)
 
       if (response.error) {
         const isAuth =
@@ -355,7 +381,22 @@ export default function NuevaCargaPage() {
       onSubmit={handleSubmit}
       className="min-h-full bg-[#F8FAFC] p-8"
     >
-      <div className="mx-auto max-w-7xl pb-24">
+      <div className="mx-auto max-w-7xl pb-8">
+        <div className="mb-8">
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[#C1C7D2] uppercase">
+            <Link href="/curador/nueva-carga" className="hover:text-[#005496]">
+              Nueva carga
+            </Link>
+            <span>{'>'}</span>
+            <span className="text-[#005496]">
+              {editId ? 'Editar documento' : 'Nuevo documento'}
+            </span>
+          </div>
+          <h1 className="font-['Space_Grotesk'] text-[28px] font-bold tracking-tight text-[#00315C] md:text-[32px]">
+            Ingesta y clasificación avanzada
+          </h1>
+        </div>
+
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
           {/* Main column */}
           <div className="flex flex-col gap-6 lg:col-span-8">
@@ -449,10 +490,22 @@ export default function NuevaCargaPage() {
               />
             </Card>
 
-            {/* 6. Matrices */}
-            <MatricesSection />
+            {/* 6. Estado legal */}
+            <Card className="p-8 shadow-sm">
+              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Estado legal</h2>
+              <EstadoLegalField defaultValue={readString(initialData?.documento?.estadoLegal)} />
+            </Card>
 
-            {/* 7. SEO */}
+            {/* 7. Matrices */}
+            <Card className="p-8 shadow-sm">
+              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Matrices de vinculación</h2>
+              <MatricesSection
+                initialMatrizAId={initialMatrices.matrizAId}
+                initialMatrizBIds={initialMatrices.matrizBIds}
+              />
+            </Card>
+
+            {/* 8. SEO */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Enriquecimiento y SEO</h2>
               <SeoSection />
@@ -493,11 +546,8 @@ export default function NuevaCargaPage() {
             <ReformAlert />
           </div>
         </div>
-      </div>
 
-      {/* Fixed bottom action bar */}
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-end gap-3 px-8 py-4">
+        <CuradorBottomBar variant="inline">
           <Button
             type="button"
             variant="outline"
@@ -523,7 +573,7 @@ export default function NuevaCargaPage() {
               'Publicar documento'
             )}
           </Button>
-        </div>
+        </CuradorBottomBar>
       </div>
     </form>
   )

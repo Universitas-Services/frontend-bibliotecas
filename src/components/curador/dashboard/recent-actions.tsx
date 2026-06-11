@@ -1,70 +1,60 @@
+import Link from 'next/link'
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Pencil, CheckCircle2, FileX, UploadCloud } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { FileText, ClipboardList, AlertCircle } from 'lucide-react'
 
-const actions = [
-  {
-    id: 1,
-    title: 'Edición de Artículo #4521',
-    subtitle: 'Hace 15 min • Derecho Civil',
-    icon: Pencil,
-    iconBg: 'bg-[#D4E4FA]',
-    iconColor: 'text-[#005496]',
-  },
-  {
-    id: 2,
-    title: 'Aprobación Lote OCR',
-    subtitle: 'Hace 2 horas • Dr. Ricardo',
-    icon: CheckCircle2,
-    iconBg: 'bg-[#DCFCE7]',
-    iconColor: 'text-[#16A34A]',
-  },
-  {
-    id: 3,
-    title: 'Documento Devuelto',
-    subtitle: 'Hace 4 horas • Error de Formato',
-    icon: FileX,
-    iconBg: 'bg-[#FEE2E2]',
-    iconColor: 'text-[#93000A]',
-  },
-  {
-    id: 4,
-    title: 'Nueva Carga Masiva',
-    subtitle: 'Ayer • 250 Archivos PDF',
-    icon: UploadCloud,
-    iconBg: 'bg-[#D4E4FA]',
-    iconColor: 'text-[#005496]',
-  },
-]
+import type { DashboardStats } from '@/lib/curador-dashboard'
 
-export function RecentActions() {
+type RecentActionsProps = {
+  stats: DashboardStats
+}
+
+export function RecentActions({ stats }: RecentActionsProps) {
+  const items = [
+    {
+      icon: FileText,
+      label: `${stats.borradores} borradores por completar`,
+      href: '/curador/gestion-documental?estado=borradores',
+      show: stats.borradores > 0,
+    },
+    {
+      icon: ClipboardList,
+      label: `${stats.enRevision} documentos en revisión`,
+      href: '/curador/gestion-documental?estado=en-revision',
+      show: stats.enRevision > 0,
+    },
+    {
+      icon: AlertCircle,
+      label: 'Revisar correcciones del administrador',
+      href: '/curador/correcciones',
+      show: true,
+    },
+  ].filter((item) => item.show)
+
   return (
     <Card className="border-[#C1C7D2] shadow-sm">
-      <CardHeader className="pb-6">
-        <CardTitle className="text-lg font-bold text-[#0F1D30]">Últimas Acciones</CardTitle>
+      <CardHeader>
+        <CardTitle className="text-lg font-bold text-[#0F1D30]">Acciones pendientes</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          {actions.map((action) => (
-            <div key={action.id} className="flex items-start gap-4">
-              <div
-                className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${action.iconBg}`}
-              >
-                <action.icon className={`h-4 w-4 ${action.iconColor}`} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-[#0F1D30]">{action.title}</span>
-                <span className="mt-0.5 text-xs font-semibold text-[#6B7280]">
-                  {action.subtitle}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-8 flex justify-center">
-          <button className="text-[13px] font-bold text-[#005496] hover:underline">
-            Ver todo el historial
-          </button>
-        </div>
+      <CardContent className="space-y-3">
+        {items.length === 0 ? (
+          <p className="text-sm text-[#6B7280]">No hay acciones pendientes por ahora.</p>
+        ) : (
+          items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center gap-3 rounded-lg border border-[#E5E7EB] p-3 transition-colors hover:bg-[#F9FAFB]"
+            >
+              <item.icon className="h-4 w-4 text-[#005496]" />
+              <span className="text-sm font-medium text-[#404551]">{item.label}</span>
+            </Link>
+          ))
+        )}
+        <Button variant="link" className="h-auto p-0 text-[#005496]" asChild>
+          <Link href="/curador/gestion-documental">Ver gestión documental</Link>
+        </Button>
       </CardContent>
     </Card>
   )

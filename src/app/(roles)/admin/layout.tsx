@@ -1,8 +1,10 @@
 import type { CSSProperties } from 'react'
+import { redirect } from 'next/navigation'
 
 import { AdminHeader } from '@/components/admin/admin-header'
 import { AdminSidebar } from '@/components/admin/admin-sidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { getSessionUser } from '@/lib/session'
 
 const adminSidebarTheme = {
   '--sidebar-width': '16rem',
@@ -17,11 +19,17 @@ const adminSidebarTheme = {
   '--sidebar-ring': '#499DFE',
 } as CSSProperties
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSessionUser()
+
+  if (session.sessionInvalid) {
+    redirect('/login?logout=1')
+  }
+
   return (
     <SidebarProvider style={adminSidebarTheme}>
       <div className="flex min-h-screen w-full bg-zinc-50/50">
-        <AdminSidebar />
+        <AdminSidebar user={session.user} />
         <SidebarInset className="flex flex-1 flex-col overflow-hidden bg-white">
           <AdminHeader />
           <main className="flex-1 overflow-y-auto">{children}</main>

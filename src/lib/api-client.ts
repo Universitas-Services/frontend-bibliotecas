@@ -685,6 +685,74 @@ export async function apiPutFormData(path: string, source: FormData): Promise<Ap
   }
 }
 
+export async function apiPatchFormData(
+  path: string,
+  source: FormData,
+): Promise<ApiResult<unknown>> {
+  const token = await getBearerToken()
+
+  if (!token) {
+    const failure = await getAuthFailure()
+    return { success: false, ...failure }
+  }
+
+  const body = buildOutboundFormData(source)
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      body,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+
+    const data = await parseResponseBody(res)
+
+    if (!res.ok) {
+      const fallback =
+        res.status === 401
+          ? 'Sesión no válida o expirada. Inicie sesión nuevamente.'
+          : res.status === 400
+            ? 'La solicitud no cumple los requisitos del servidor.'
+            : 'Error del backend al procesar la solicitud.'
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API PATCH multipart] ${path} → ${res.status}`, data)
+      }
+
+      return {
+        success: false,
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        details: getApiErrorDetails(data),
+        status: res.status,
+        code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
+        raw: data,
+      }
+    }
+
+    return { success: true, data, status: res.status }
+  } catch (error) {
+    const detail = getFetchErrorMessage(error)
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API PATCH multipart] ${path} network error`, error)
+    }
+
+    return {
+      success: false,
+      error: isTimeout
+        ? 'El servidor tardó demasiado en responder. Intente de nuevo en unos segundos.'
+        : `Error de conexión con el servidor. ${detail}`,
+      code: 'NETWORK_ERROR',
+    }
+  }
+}
+
 export async function apiPatch(path: string, body: unknown): Promise<ApiResult<unknown>> {
   const token = await getBearerToken()
 

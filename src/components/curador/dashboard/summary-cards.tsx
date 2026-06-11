@@ -1,7 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileUp, CheckCircle2, ClipboardList } from 'lucide-react'
 
-export function SummaryCards() {
+import type { DashboardStats } from '@/lib/curador-dashboard'
+
+type SummaryCardsProps = {
+  stats: DashboardStats
+}
+
+export function SummaryCards({ stats }: SummaryCardsProps) {
+  const publicadoPct = stats.total > 0 ? Math.round((stats.publicados / stats.total) * 100) : 0
+
   return (
     <div className="mb-6 grid gap-4 md:grid-cols-3">
       <Card className="border-[#C1C7D2] shadow-sm">
@@ -12,10 +20,10 @@ export function SummaryCards() {
           <FileUp className="h-5 w-5 text-[#005496]" />
         </CardHeader>
         <CardContent>
-          <div className="font-['Space_Grotesk'] text-4xl font-bold text-[#00315C]">1,248</div>
-          <p className="mt-2 flex items-center text-xs font-medium text-[#16A34A]">
-            <span className="mr-1">↗</span> +12% vs. mes anterior
-          </p>
+          <div className="font-['Space_Grotesk'] text-4xl font-bold text-[#00315C]">
+            {stats.total}
+          </div>
+          <p className="mt-2 text-xs font-medium text-[#6B7280]">Total en su gestión documental</p>
         </CardContent>
       </Card>
 
@@ -27,8 +35,12 @@ export function SummaryCards() {
           <CheckCircle2 className="h-5 w-5 text-[#16A34A]" />
         </CardHeader>
         <CardContent>
-          <div className="font-['Space_Grotesk'] text-4xl font-bold text-[#00315C]">1,012</div>
-          <p className="mt-2 text-xs font-medium text-[#6B7280]">81% del total cargado</p>
+          <div className="font-['Space_Grotesk'] text-4xl font-bold text-[#00315C]">
+            {stats.publicados}
+          </div>
+          <p className="mt-2 text-xs font-medium text-[#6B7280]">
+            {publicadoPct}% del total cargado
+          </p>
         </CardContent>
       </Card>
 
@@ -41,12 +53,14 @@ export function SummaryCards() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <div className="font-['Space_Grotesk'] text-4xl font-bold text-[#00315C]">45</div>
+            <div className="font-['Space_Grotesk'] text-4xl font-bold text-[#00315C]">
+              {stats.enRevision}
+            </div>
             <div className="mt-1 rounded-full bg-[#D4E4FA] px-2.5 py-1 text-xs font-semibold text-[#005496]">
-              18 borradores
+              {stats.borradores} borradores
             </div>
           </div>
-          <p className="mt-2 text-xs font-medium text-[#6B7280]">Pendientes de publicación</p>
+          <p className="mt-2 text-xs font-medium text-[#6B7280]">Pendientes de aprobación</p>
         </CardContent>
       </Card>
     </div>

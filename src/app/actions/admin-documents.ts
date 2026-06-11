@@ -1,6 +1,6 @@
 'use server'
 
-import { apiGet, normalizeDocumentsList, type ApiErrorCode } from '@/lib/api-client'
+import { apiGet, apiPost, normalizeDocumentsList, type ApiErrorCode } from '@/lib/api-client'
 
 export type AdminDocumentsFilters = {
   curadorId?: string
@@ -156,4 +156,65 @@ export async function getAdminDocumentsAction(
     },
     status: result.status,
   }
+}
+
+export type AprobarDocumentoPayload = {
+  /** Si es true, envía matrizAId/matrizBIds para sobrescribir la propuesta del curador. */
+  overrideMatrices?: boolean
+  matrizAId?: string | null
+  matrizBIds?: string[]
+}
+
+export async function aprobarDocumentoAction(id: string, payload: AprobarDocumentoPayload = {}) {
+  const body: Record<string, unknown> = {}
+
+  if (payload.overrideMatrices) {
+    body.matrizAId = payload.matrizAId ?? null
+    body.matrizBIds = payload.matrizBIds ?? []
+  }
+
+  const result = await apiPost(`/workflows/publicar/${id}`, body)
+
+  if (!result.success) {
+    return {
+      success: false as const,
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  return { success: true as const, data: result.data }
+}
+
+export type RechazarDocumentoPayload = {
+  motivo: string
+}
+
+export async function rechazarDocumentoAction(id: string, payload: RechazarDocumentoPayload) {
+  const motivo = payload.motivo.trim()
+
+  if (!motivo) {
+    return {
+      success: false as const,
+      error: 'Debe indicar el motivo del rechazo.',
+      status: 400,
+      code: 'HTTP_ERROR' as const,
+    }
+  }
+
+  const result = await apiPost(`/workflows/rechazar/${id}`, { motivo })
+
+  if (!result.success) {
+    return {
+      success: false as const,
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  return { success: true as const, data: result.data }
 }

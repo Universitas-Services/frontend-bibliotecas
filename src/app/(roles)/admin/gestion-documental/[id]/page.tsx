@@ -3,7 +3,10 @@ import Link from 'next/link'
 import { getDocumentByIdAction } from '@/app/actions/documents'
 import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
+import { AdminApprovePanel } from '@/components/admin/gestion-documental/admin-approve-panel'
 import { AdminNotasPanel } from '@/components/admin/gestion-documental/admin-notas-panel'
+import { EstadoLegalEditor } from '@/components/shared/estado-legal-editor'
+import { extractDocumentMatrices } from '@/lib/document-matrices'
 import { DocumentMetadataCard } from '@/components/curador/correcciones/document-metadata-card'
 import { DocumentPreview } from '@/components/curador/correcciones/document-preview'
 import { RevisionHistory } from '@/components/curador/correcciones/revision-history'
@@ -37,6 +40,10 @@ export default async function AdminDocumentReviewPage({ params }: PageProps) {
   const estadoBackend = String(combinedData?.estado || 'PENDIENTE_REVISION')
   const status = mapBackendStatus(estadoBackend)
   const statusStyle = DOCUMENT_STATUS_STYLES[status]
+
+  const curatorMatrices = extractDocumentMatrices(
+    (docData ?? undefined) as Record<string, unknown> | undefined,
+  )
 
   const curador = combinedData?.curador as Record<string, unknown> | undefined
   const curadorNombre = curador
@@ -95,6 +102,19 @@ export default async function AdminDocumentReviewPage({ params }: PageProps) {
           </div>
 
           <div className="lg:col-span-5 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
+            <div className="mb-6 space-y-4">
+              <AdminApprovePanel
+                documentoId={id}
+                status={status}
+                curatorMatrices={curatorMatrices}
+              />
+              <EstadoLegalEditor
+                documentoId={id}
+                currentEstadoLegal={
+                  typeof combinedData?.estadoLegal === 'string' ? combinedData.estadoLegal : null
+                }
+              />
+            </div>
             <Tabs defaultValue="notas" className="w-full">
               <TabsList className="mb-6 grid w-full grid-cols-3 rounded-md bg-[#E5E7EB] p-1">
                 <TabsTrigger
