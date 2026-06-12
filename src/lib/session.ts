@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 
 import { getUserMeAction } from '@/app/actions/profile'
 import { decodeJwt, isTokenExpired } from '@/lib/auth'
+import { isE2eTestMode } from '@/lib/e2e-test'
 import { isMustChangePasswordActive, MUST_CHANGE_PASSWORD_COOKIE } from '@/lib/auth-cookies'
 import {
   buildInitials,
@@ -74,6 +75,11 @@ export async function getSessionUser(): Promise<GetSessionUserResult> {
   if (mustChangePassword) {
     const restrictedUser = getSessionUserFromJwt(token, true)
     return { user: restrictedUser, sessionInvalid: false }
+  }
+
+  if (isE2eTestMode()) {
+    const e2eUser = getSessionUserFromJwt(token)
+    return e2eUser ? { user: e2eUser, sessionInvalid: false } : { user: null, sessionInvalid: true }
   }
 
   const me = await getUserMeAction()

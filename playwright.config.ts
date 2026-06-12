@@ -25,6 +25,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       API_BASE_URL: process.env.API_BASE_URL ?? 'https://biblioteca-legal-backend.onrender.com',
+      E2E_TEST_MODE: '1',
     },
   },
 })
