@@ -9,11 +9,18 @@ import { Checkbox } from '@/components/ui/checkbox'
 type UploadZoneProps = {
   disabled?: boolean
   onFileSelected: (file: File | null) => void
+  initialFileName?: string
+  initialOcr?: boolean
 }
 
-export function UploadZone({ disabled = false, onFileSelected }: UploadZoneProps) {
-  const [fileName, setFileName] = useState<string | null>(null)
-  const [fileSize, setFileSize] = useState<string>('0.0 MB')
+export function UploadZone({
+  disabled = false,
+  onFileSelected,
+  initialFileName,
+  initialOcr,
+}: UploadZoneProps) {
+  const [fileName, setFileName] = useState<string | null>(initialFileName || null)
+  const [fileSize, setFileSize] = useState<string>(initialFileName ? 'Ya subido' : '0.0 MB')
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -44,7 +51,11 @@ export function UploadZone({ disabled = false, onFileSelected }: UploadZoneProps
           strokeWidth={1.5}
         />
         <h3 className="mb-2 font-medium text-gray-800">
-          {fileName ? fileName : 'Arrastra el documento original aquí o haz clic'}
+          {fileName
+            ? fileName
+            : initialFileName
+              ? 'Arrastra un nuevo documento para reemplazarlo'
+              : 'Arrastra el documento original aquí o haz clic'}
         </h3>
         <p className="mb-6 text-sm text-gray-500">
           {fileName ? 'Documento listo para subir' : 'Solo formato PDF, DOC — Máx. 50MB'}
@@ -66,6 +77,7 @@ export function UploadZone({ disabled = false, onFileSelected }: UploadZoneProps
           id="ocr"
           name="soloLecturaImagen"
           value="true"
+          defaultChecked={initialOcr}
           className="mt-1 border-gray-300"
           disabled={disabled}
         />

@@ -12,7 +12,19 @@ interface CategoriaItem {
   nombre: string
 }
 
-export function TaxonomySection() {
+type InitialCategoria = string | { id?: string; _id?: string; nombre?: string }
+
+interface TaxonomySectionProps {
+  initialCategorias?: InitialCategoria[]
+}
+
+function getInitialCategoriaIds(initialCategorias: InitialCategoria[]): string[] {
+  return initialCategorias
+    .map((categoria) => (typeof categoria === 'string' ? categoria : categoria.id || categoria._id))
+    .filter((id): id is string => Boolean(id))
+}
+
+export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}) {
   const [categoriasDB, setCategoriasDB] = useState<CategoriaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategorias, setSelectedCategorias] = useState<CategoriaItem[]>([])
@@ -24,7 +36,26 @@ export function TaxonomySection() {
     async function fetchData() {
       try {
         const catData = await getCategoriasAdmin()
-        setCategoriasDB(Array.isArray(catData) ? catData : [])
+        const categorias = Array.isArray(catData) ? catData : []
+        setCategoriasDB(categorias)
+
+        if (initialCategorias && initialCategorias.length > 0) {
+          const initialIds = getInitialCategoriaIds(initialCategorias)
+          const matchedCats = categorias.filter((cat) =>
+            initialIds.includes(cat.id || cat._id || ''),
+          )
+
+          if (matchedCats.length > 0) {
+            setSelectedCategorias(matchedCats)
+          } else if (initialIds.length > 0) {
+            setSelectedCategorias(
+              initialIds.map((id) => ({
+                id,
+                nombre: 'Categoría asignada',
+              })),
+            )
+          }
+        }
       } catch (error) {
         console.error('Error al cargar categorías', error)
       } finally {
@@ -32,6 +63,7 @@ export function TaxonomySection() {
       }
     }
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

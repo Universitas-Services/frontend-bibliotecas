@@ -1,7 +1,14 @@
 import { Input } from '@/components/ui/input'
 import { Info } from 'lucide-react'
 
-export function LegalIdentification() {
+interface LegalIdentificationProps {
+  initialValues?: {
+    tituloIntegro?: string
+    nombreBreve?: string
+  }
+}
+
+export function LegalIdentification({ initialValues }: LegalIdentificationProps) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -12,6 +19,7 @@ export function LegalIdentification() {
         <Input
           name="tituloIntegro"
           required
+          defaultValue={initialValues?.tituloIntegro || ''}
           placeholder="Escriba el nombre completo del instrumento legal..."
           className="h-11 border-gray-300"
         />
@@ -24,6 +32,7 @@ export function LegalIdentification() {
         </label>
         <Input
           name="nombreBreve"
+          defaultValue={initialValues?.nombreBreve || ''}
           placeholder="Ej: Ley de Protección de Datos 2024"
           className="h-11 border-gray-300"
         />

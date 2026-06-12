@@ -6,6 +6,9 @@ import { usePathname } from 'next/navigation'
 
 import { logoutAction } from '@/app/actions/auth'
 import { adminNavSections } from '@/components/admin/admin-nav'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getProfilePathForRole } from '@/lib/role-labels'
+import { formatSessionDisplayName, type SessionUser } from '@/lib/session-shared'
 import {
   Sidebar,
   SidebarContent,
@@ -40,8 +43,16 @@ function isNavActive(pathname: string, url: string) {
   return pathname === url || pathname.startsWith(`${url}/`)
 }
 
-export function AdminSidebar() {
+type AdminSidebarProps = {
+  user?: SessionUser | null
+}
+
+export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname()
+  const displayName = formatSessionDisplayName(user)
+  const roleLabel = user?.role || 'ADMIN'
+  const initials = user?.initials || 'AD'
+  const profilePath = getProfilePathForRole(roleLabel)
 
   return (
     <Sidebar
@@ -135,10 +146,32 @@ export function AdminSidebar() {
           'group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:p-2',
         )}
       >
-        <p className="mb-3 text-[9px] leading-snug text-white/45 group-data-[collapsible=icon]:hidden">
-          Copyright © 2023 Universitas Services | GESTOR CONTRATACIONES
-        </p>
         <SidebarMenu className={iconMenu}>
+          <SidebarMenuItem className={iconMenu}>
+            <SidebarMenuButton
+              asChild
+              tooltip={`Ver perfil — ${displayName}`}
+              className={cn(
+                'h-auto w-full py-2 hover:bg-white/10',
+                pathname === profilePath && 'bg-white/15',
+                iconBtn,
+              )}
+            >
+              <Link href={profilePath} className={navLinkClass}>
+                <Avatar className="h-9 w-9 shrink-0 border border-white/20">
+                  <AvatarFallback className="bg-white/15 text-xs text-white">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
+                  <span className="truncate text-sm font-medium text-white">{displayName}</span>
+                  <span className="text-[10px] font-bold tracking-widest text-white/55 uppercase">
+                    {roleLabel}
+                  </span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem className={iconMenu}>
             <form action={logoutAction} className="flex w-full justify-center">
               <SidebarMenuButton
@@ -155,6 +188,9 @@ export function AdminSidebar() {
             </form>
           </SidebarMenuItem>
         </SidebarMenu>
+        <p className="mt-3 text-[9px] leading-snug text-white/45 group-data-[collapsible=icon]:hidden">
+          Copyright © 2023 Universitas Services | GESTOR CONTRATACIONES
+        </p>
       </SidebarFooter>
     </Sidebar>
   )

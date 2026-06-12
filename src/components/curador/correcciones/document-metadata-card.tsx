@@ -1,9 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { extractDocumentMatrices } from '@/lib/document-matrices'
 
 export interface DocumentData {
   titulo?: string | null
   nombreBreve?: string | null
+  matrizA?: { id?: string; nombreProducto?: string; nombre?: string } | null
+  matrizB?: Array<{ id?: string; tituloArticulo?: string; titulo?: string }> | null
   tipoNorma?: string | null
   temaPrincipal?: string | null
   enteEmisor?: string | null
@@ -19,6 +22,29 @@ interface DocumentMetadataProps {
   document: DocumentData | null
 }
 
+function MetadataBadgeField({
+  label,
+  value,
+  badgeClassName,
+}: {
+  label: string
+  value: string
+  badgeClassName: string
+}) {
+  return (
+    <div className="min-w-0 rounded-md bg-white p-5 shadow-sm">
+      <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+        {label}
+      </h4>
+      <Badge
+        className={`inline-flex h-auto max-w-full px-2.5 py-1 text-[10px] leading-snug font-bold whitespace-normal uppercase ${badgeClassName}`}
+      >
+        {value}
+      </Badge>
+    </div>
+  )
+}
+
 export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
   if (!document) {
     return (
@@ -27,6 +53,8 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
       </Card>
     )
   }
+
+  const matrices = extractDocumentMatrices(document as Record<string, unknown>)
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,23 +82,17 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
             </p>
           </div>
 
-          <div className="mx-4 mb-4 flex flex-col gap-4 md:flex-row">
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Tipo de documento
-              </h4>
-              <Badge className="rounded-sm bg-[#10130B] px-2.5 py-0.5 text-[10px] font-bold uppercase hover:bg-[#10130B]">
-                {document.tipoDocumento || 'No clasificado'}
-              </Badge>
-            </div>
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Tipo de norma
-              </h4>
-              <Badge className="rounded-sm bg-[#10130B] px-2.5 py-0.5 text-[10px] font-bold uppercase hover:bg-[#10130B]">
-                {document.tipoNorma?.replace('-', ' ') || 'No clasificado'}
-              </Badge>
-            </div>
+          <div className="mx-4 mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <MetadataBadgeField
+              label="Tipo de documento"
+              value={document.tipoDocumento || 'No clasificado'}
+              badgeClassName="bg-[#10130B] text-white"
+            />
+            <MetadataBadgeField
+              label="Tipo de norma"
+              value={document.tipoNorma?.replace(/-/g, ' ') || 'No clasificado'}
+              badgeClassName="bg-[#10130B] text-white"
+            />
           </div>
 
           <div className="mx-4 mb-4 flex flex-col gap-4 md:flex-row">
@@ -100,6 +122,30 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
             <p className="text-[14px] font-bold text-[#005496]">
               {document.enteEmisor || 'No especificado'}
             </p>
+          </div>
+
+          <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
+            <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+              Matrices de vinculación
+            </h4>
+            <div className="space-y-2 text-sm text-[#00315C]">
+              <p>
+                <span className="font-semibold">Matriz A:</span>{' '}
+                {matrices.matrizA?.nombre || 'Sin asignar'}
+              </p>
+              <div>
+                <span className="font-semibold">Matriz B:</span>
+                {matrices.matrizB.length > 0 ? (
+                  <ul className="mt-1 list-disc space-y-1 pl-4">
+                    {matrices.matrizB.map((item) => (
+                      <li key={item.id}>{item.titulo}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="ml-1">Sin asignar</span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="mx-4 mb-5 flex flex-col gap-4 md:flex-row">

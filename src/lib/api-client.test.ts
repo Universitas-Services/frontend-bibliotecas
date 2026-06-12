@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildOutboundFormData, getApiErrorMessage, normalizeDocumentsList } from '@/lib/api-client'
+import {
+  buildOutboundFormData,
+  getApiErrorMessage,
+  mergeDocumentsById,
+  normalizeDocumentsList,
+} from '@/lib/api-client'
 
 describe('api-client helpers', () => {
   it('extracts message from backend error body', () => {
@@ -40,6 +45,30 @@ describe('api-client helpers', () => {
   it('returns empty array for unknown shapes', () => {
     expect(normalizeDocumentsList(null)).toEqual([])
     expect(normalizeDocumentsList({ total: 0 })).toEqual([])
+  })
+
+  it('merges multiple document arrays from the same wrapper', () => {
+    const docs = [
+      { id: '1', titulo: 'A' },
+      { id: '2', titulo: 'B' },
+      { id: '3', titulo: 'C' },
+    ]
+
+    expect(
+      normalizeDocumentsList({
+        data: [docs[0]],
+        documentos: docs,
+      }),
+    ).toEqual(docs)
+  })
+
+  it('deduplicates documents by id when merging lists', () => {
+    const first = [{ id: '1', titulo: 'A', estado: 'BORRADOR' }]
+    const second = [{ id: '1', titulo: 'A actualizado', revisor: 'Juan' }]
+
+    expect(mergeDocumentsById(first, second)).toEqual([
+      { id: '1', titulo: 'A actualizado', estado: 'BORRADOR', revisor: 'Juan' },
+    ])
   })
 
   it('rebuilds multipart with file name for outbound upload', () => {

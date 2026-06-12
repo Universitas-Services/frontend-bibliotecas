@@ -11,8 +11,12 @@ export async function createCategoriaAction(prevState: unknown, formData: FormDa
     return { success: false as const, error: 'No autorizado' }
   }
 
-  const payload = {
+  const descripcion = (formData.get('descripcion') as string)?.trim()
+  const payload: Record<string, string> = {
     nombre: formData.get('nombre') as string,
+  }
+  if (descripcion) {
+    payload.descripcion = descripcion
   }
 
   if (!payload.nombre) {

@@ -1,7 +1,7 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { getApiBaseUrl } from '@/lib/api'
 
 import { validateCreateUserInput } from '@/lib/admin-validation'
@@ -123,6 +123,7 @@ export async function createUserAction(formData: FormData) {
     const user = await res.json()
     // @ts-expect-error - Next.js canary typings issue with Dynamic IO
     revalidateTag('usuarios')
+    revalidatePath('/admin/taxonomia/temas')
     return { success: true as const, data: user }
   } catch (error) {
     console.error('Error creating user:', error)

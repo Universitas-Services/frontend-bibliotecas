@@ -1,7 +1,15 @@
 'use server'
 
-import { apiPost, apiGet } from '@/lib/api-client'
+import { apiPost, apiGet, apiDelete } from '@/lib/api-client'
+import {
+  normalizeCarpetaInterna,
+  type CarpetaInterna,
+  type Subcarpeta,
+  type TemaPrincipal,
+} from '@/lib/temas-taxonomy'
 import { revalidatePath } from 'next/cache'
+
+export type { CarpetaInterna, Subcarpeta, TemaPrincipal } from '@/lib/temas-taxonomy'
 
 export interface CrearTemaResponse {
   error?: string
@@ -86,35 +94,6 @@ export async function crearTipoNormaAction(
   return { data: result.data }
 }
 
-export interface CarpetaInterna {
-  id: string
-  nombreCarpeta: string
-  slug: string
-  gcsUri?: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-export interface Subcarpeta {
-  id: string
-  tipoNorma: string // Nombre del tipo de documento
-  slug: string
-  gcsUri?: string
-  createdAt?: string
-  updatedAt?: string
-  carpetasInternas?: CarpetaInterna[]
-}
-
-export interface TemaPrincipal {
-  id: string
-  nombre: string
-  slug: string
-  gcsUri?: string
-  createdAt?: string
-  updatedAt?: string
-  subcarpetas?: Subcarpeta[]
-}
-
 export async function getTemasAction(): Promise<TemaPrincipal[]> {
   const result = await apiGet('/admin/storage/temas')
 
@@ -155,8 +134,29 @@ export async function getTiposNormaAction(subcarpetaId: string): Promise<Carpeta
   }
 
   if (Array.isArray(result.data)) {
-    return result.data as CarpetaInterna[]
+    return result.data
+      .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+      .map(normalizeCarpetaInterna)
+      .filter((item) => item.id)
   }
 
   return []
+}
+
+export async function eliminarTemaAction(temaId: string): Promise<CrearTemaResponse> {
+  const result = await apiDelete(`/admin/storage/tema/${temaId}`)
+
+  if (!result.success) {
+    return {
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  revalidatePath('/admin/taxonomia/temas')
+  revalidatePath('/curador/nueva-carga')
+
+  return { data: result.data }
 }

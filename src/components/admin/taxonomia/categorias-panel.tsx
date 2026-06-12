@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState, useEffect, useState } from 'react'
-import { BookOpen, CheckCircle2, Edit, PlusCircle, Search, Trash2, XCircle } from 'lucide-react'
+import { BookOpen, Edit, PlusCircle, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,26 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { createCategoriaAction } from '@/app/actions/categorias'
-
-// Mock Data para Sugerencias (Temporal hasta tener endpoint)
-const sugerenciasMock = [
-  {
-    id: 1,
-    idSugerencia: 'SUG-001',
-    nombreSugerido: 'Derecho Espacial',
-    etiquetaAsociada: 'Derecho Internacional',
-    usuario: 'Dr. Roberto Gómez',
-    vecesSugerida: 12,
-  },
-  {
-    id: 2,
-    idSugerencia: 'SUG-002',
-    nombreSugerido: 'Derecho de la IA',
-    etiquetaAsociada: 'Tecnología y Ley',
-    usuario: 'Dr. Elena Marín',
-    vecesSugerida: 8,
-  },
-]
+import { FeatureUnavailableBanner } from '@/components/admin/feature-unavailable-banner'
 
 interface CategoriaProp {
   id?: string | number
@@ -110,6 +91,7 @@ export function CategoriasPanel({ categorias = [] }: { categorias?: CategoriaPro
                 </Label>
                 <Textarea
                   id="descripcion"
+                  name="descripcion"
                   placeholder="Defina el alcance jurídico de esta rama..."
                   className="min-h-[120px] resize-none border-gray-200 bg-gray-100/60"
                 />
@@ -140,61 +122,10 @@ export function CategoriasPanel({ categorias = [] }: { categorias?: CategoriaPro
 
         {/* Columna Derecha: Bandeja e Inventario */}
         <div className="space-y-8 lg:col-span-8">
-          {/* Bandeja de Sugerencias */}
-          <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b p-6">
-              <h2 className="text-lg font-bold text-[#00315C]">
-                Bandeja de resolución de sugerencias de categorías
-              </h2>
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-                2 pendientes
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b bg-white text-xs font-semibold text-gray-500 uppercase">
-                  <tr>
-                    <th className="px-6 py-4 whitespace-nowrap">ID de Sugerencia</th>
-                    <th className="px-6 py-4 whitespace-nowrap">Nombre sugerido</th>
-                    <th className="px-6 py-4 whitespace-nowrap">Etiqueta asociada</th>
-                    <th className="px-6 py-4 whitespace-nowrap">Usuario proponente</th>
-                    <th className="px-6 py-4 text-center whitespace-nowrap">Veces sugerida</th>
-                    <th className="px-6 py-4 text-center whitespace-nowrap">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {sugerenciasMock.map((sug) => (
-                    <tr key={sug.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-mono text-gray-500">{sug.idSugerencia}</td>
-                      <td className="px-6 py-4 font-bold text-[#00315C]">{sug.nombreSugerido}</td>
-                      <td className="px-6 py-4 text-gray-600">{sug.etiquetaAsociada}</td>
-                      <td className="px-6 py-4 font-medium text-gray-600">{sug.usuario}</td>
-                      <td className="px-6 py-4 text-center font-bold text-gray-700">
-                        {sug.vecesSugerida}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-4">
-                          <button className="text-green-600 transition-colors hover:text-green-700">
-                            <CheckCircle2 className="h-5 w-5" strokeWidth={1.5} />
-                          </button>
-                          <button className="text-red-500 transition-colors hover:text-red-600">
-                            <XCircle className="h-5 w-5" strokeWidth={1.5} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-end border-t bg-gray-50 p-4">
-              <button className="px-2 text-sm font-semibold text-[#00315C] hover:underline">
-                Ver todas las solicitudes
-              </button>
-            </div>
-          </div>
+          <FeatureUnavailableBanner
+            title="Bandeja de sugerencias de categorías no disponible"
+            description="La aprobación y rechazo de categorías propuestas por curadores requiere endpoints del backend que aún no están conectados. Por ahora puede crear categorías maestras desde el formulario de la izquierda."
+          />
 
           {/* Inventario de categorías maestras */}
           <div className="overflow-hidden rounded-xl border bg-white shadow-sm">

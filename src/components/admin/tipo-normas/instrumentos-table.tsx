@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getTiposNormaAction, type TemaPrincipal } from '@/app/actions/temas'
+import { getTipoNormaDisplayName } from '@/lib/temas-taxonomy'
 
 interface InstrumentosTableProps {
   temas: TemaPrincipal[]
@@ -56,11 +57,7 @@ export function InstrumentosTable({ temas }: InstrumentosTableProps) {
             carpetas.forEach((c) => {
               allInstrumentos.push({
                 id: c.id || String(Math.random()),
-                nombre:
-                  c.nombreCarpeta ||
-                  ((c as unknown as Record<string, unknown>).nombre as string) ||
-                  ((c as unknown as Record<string, unknown>).tipoNorma as string) ||
-                  'Desconocido',
+                nombre: c.nombreCarpeta || getTipoNormaDisplayName(c) || 'Desconocido',
                 temaAsociado: sub.temaNombre || '',
                 documentoAsociado: sub.docNombre || '',
                 fecha: c.createdAt || '-',

@@ -71,6 +71,28 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
     })
   }
 
+  const categoriaIds = formData.getAll('categoriaIds').filter((value) => String(value).trim())
+  if (categoriaIds.length === 0) {
+    issues.push({
+      field: 'categoriaIds',
+      message: 'Debe asignar al menos una categoría.',
+    })
+  }
+
+  return issues
+}
+
+export function validateBorradorForm(formData: FormData): UploadValidationIssue[] {
+  const issues: UploadValidationIssue[] = []
+  const tituloIntegro = String(formData.get('tituloIntegro') ?? '').trim()
+
+  if (!tituloIntegro) {
+    issues.push({
+      field: 'tituloIntegro',
+      message: 'El título oficial es obligatorio para guardar el borrador.',
+    })
+  }
+
   return issues
 }
 

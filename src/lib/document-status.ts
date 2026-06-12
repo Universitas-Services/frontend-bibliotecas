@@ -2,6 +2,8 @@ export type DocumentStatus = 'publicado' | 'en-revision' | 'borrador'
 
 export type DocumentFilterId = 'todos' | 'publicados' | 'en-revision' | 'borradores'
 
+export type LegalStatus = 'vigente' | 'reformada' | 'derogada' | 'sin-clasificar'
+
 export const DOCUMENT_FILTER_TABS: {
   id: DocumentFilterId
   label: string
@@ -45,18 +47,104 @@ export const DOCUMENT_STATUS_STYLES: Record<
   },
 }
 
-export function mapBackendStatus(estado: string): DocumentStatus {
-  const normalized = estado.toLowerCase()
+export const ESTADO_LEGAL_OPTIONS = [
+  { value: 'VIGENTE', label: 'Vigente' },
+  { value: 'REFORMADA', label: 'Reformada' },
+  { value: 'DEROGADA', label: 'Derogada' },
+] as const
 
-  if (normalized.includes('publicado') || normalized.includes('aprobado')) {
+export type BackendEstadoLegal = (typeof ESTADO_LEGAL_OPTIONS)[number]['value']
+
+export const LEGAL_STATUS_STYLES: Record<
+  LegalStatus,
+  {
+    label: string
+    badgeBg: string
+    badgeText: string
+  }
+> = {
+  vigente: {
+    label: 'Vigente',
+    badgeBg: 'bg-emerald-50',
+    badgeText: 'text-emerald-700',
+  },
+  reformada: {
+    label: 'Reformada',
+    badgeBg: 'bg-amber-50',
+    badgeText: 'text-amber-700',
+  },
+  derogada: {
+    label: 'Derogada',
+    badgeBg: 'bg-rose-50',
+    badgeText: 'text-rose-700',
+  },
+  'sin-clasificar': {
+    label: 'Sin clasificar',
+    badgeBg: 'bg-slate-100',
+    badgeText: 'text-slate-600',
+  },
+}
+
+/** Flujo CMS: BORRADOR | PENDIENTE_REVISION | PUBLICADO */
+export function mapBackendStatus(estado: string): DocumentStatus {
+  const normalized = estado.toUpperCase().replace(/\s+/g, '_')
+
+  if (normalized === 'PUBLICADO' || normalized.includes('PUBLICADO')) {
     return 'publicado'
   }
-  if (normalized.includes('borrador')) {
+
+  if (normalized === 'BORRADOR' || normalized.includes('BORRADOR')) {
     return 'borrador'
   }
-  if (normalized.includes('revision') || normalized.includes('revisión')) {
+
+  if (
+    normalized === 'PENDIENTE_REVISION' ||
+    normalized.includes('PENDIENTE') ||
+    normalized.includes('REVISION')
+  ) {
     return 'en-revision'
   }
 
   return 'borrador'
+}
+
+/** Validez jurídica: VIGENTE | REFORMADA | DEROGADA | null */
+export function mapBackendLegalStatus(estadoLegal: string | null | undefined): LegalStatus {
+  if (!estadoLegal || !estadoLegal.trim()) {
+    return 'sin-clasificar'
+  }
+
+  const normalized = estadoLegal.toUpperCase().replace(/\s+/g, '_')
+
+  if (normalized.includes('VIGENTE')) return 'vigente'
+  if (normalized.includes('REFORMADA')) return 'reformada'
+  if (normalized.includes('DEROGADA')) return 'derogada'
+
+  return 'sin-clasificar'
+}
+
+export function mapFilterTabToBackendEstado(tab: DocumentFilterId): string | undefined {
+  switch (tab) {
+    case 'publicados':
+      return 'PUBLICADO'
+    case 'en-revision':
+      return 'PENDIENTE_REVISION'
+    case 'borradores':
+      return 'BORRADOR'
+    default:
+      return undefined
+  }
+}
+
+export function mapTimeFilterToBackend(tiempo: string): string | undefined {
+  switch (tiempo) {
+    case '7d':
+      return '7_DIAS'
+    case '30d':
+      return '30_DIAS'
+    case '90d':
+      return '3_MESES'
+    default:
+      return undefined
+  }
 }

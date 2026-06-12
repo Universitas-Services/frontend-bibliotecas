@@ -88,7 +88,7 @@ export function getApiErrorDetails(data: unknown): string | undefined {
   const messages = collectValidationMessages(record)
 
   if (messages.length > 1) {
-    return messages.map((line) => `• ${line}`).join('\n')
+    return messages.map((line) => `• ${translateBackendError(line)}`).join('\n')
   }
 
   if (typeof record.statusCode === 'number') {
@@ -119,34 +119,105 @@ async function parseResponseBody(res: Response): Promise<unknown> {
   return null
 }
 
-/** Normaliza listados del backend: array plano o envoltorios paginados. */
+function isDocumentLike(item: unknown): item is Record<string, unknown> {
+  if (!item || typeof item !== 'object') return false
+  const record = item as Record<string, unknown>
+  return (
+    'id' in record ||
+    '_id' in record ||
+    'documentoId' in record ||
+    'titulo' in record ||
+    'tituloIntegro' in record
+  )
+}
+
+function getDocumentId(doc: Record<string, unknown>): string {
+  return String(doc.id ?? doc._id ?? doc.documentoId ?? '')
+}
+
+/** Une listas del backend sin duplicar por id. */
+export function mergeDocumentsById(
+  ...lists: Record<string, unknown>[][]
+): Record<string, unknown>[] {
+  const byId = new Map<string, Record<string, unknown>>()
+  const withoutId: Record<string, unknown>[] = []
+
+  for (const list of lists) {
+    for (const doc of list) {
+      const id = getDocumentId(doc)
+      if (!id) {
+        withoutId.push(doc)
+        continue
+      }
+
+      const previous = byId.get(id)
+      byId.set(id, previous ? { ...previous, ...doc } : doc)
+    }
+  }
+
+  return [...byId.values(), ...withoutId]
+}
+
+const DOCUMENT_LIST_KEYS = [
+  'data',
+  'content',
+  'documentos',
+  'items',
+  'results',
+  'docs',
+  'payload',
+  'rows',
+  'records',
+  'list',
+  'elements',
+]
+
+function toDocumentRecords(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return []
+
+  return value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+}
+
+/** Normaliza listados del backend: array plano o envoltorios paginados (incluye anidados). */
 export function normalizeDocumentsList(data: unknown): Record<string, unknown>[] {
   if (Array.isArray(data)) {
-    return data.filter(
-      (item): item is Record<string, unknown> => !!item && typeof item === 'object',
-    )
+    return toDocumentRecords(data)
   }
 
   if (data && typeof data === 'object') {
     const record = data as Record<string, unknown>
-    const knownKeys = ['data', 'content', 'documentos', 'items', 'results', 'docs', 'payload']
+    const arrayResults: Record<string, unknown>[][] = []
 
-    for (const key of knownKeys) {
+    for (const key of DOCUMENT_LIST_KEYS) {
       const value = record[key]
+      if (value === undefined || value === null) continue
+
       if (Array.isArray(value)) {
-        return value.filter(
-          (item): item is Record<string, unknown> => !!item && typeof item === 'object',
-        )
+        const items = toDocumentRecords(value)
+        if (items.length > 0) arrayResults.push(items)
+        continue
       }
+
+      const nested = normalizeDocumentsList(value)
+      if (nested.length > 0) arrayResults.push(nested)
+    }
+
+    if (arrayResults.length > 0) {
+      return mergeDocumentsById(...arrayResults)
     }
 
     for (const key of Object.keys(record)) {
       const value = record[key]
       if (Array.isArray(value)) {
-        return value.filter(
-          (item): item is Record<string, unknown> => !!item && typeof item === 'object',
-        )
+        const items = toDocumentRecords(value)
+        if (items.length > 0 && items.some(isDocumentLike)) {
+          arrayResults.push(items)
+        }
       }
+    }
+
+    if (arrayResults.length > 0) {
+      return mergeDocumentsById(...arrayResults)
     }
   }
 
@@ -260,7 +331,7 @@ export async function apiPostFormData(path: string, source: FormData): Promise<A
 
       return {
         success: false,
-        error: getApiErrorMessage(data, fallback),
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -320,7 +391,7 @@ export async function apiGet(path: string): Promise<ApiResult<unknown>> {
 
       return {
         success: false,
-        error: getApiErrorMessage(data, fallback),
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -332,6 +403,148 @@ export async function apiGet(path: string): Promise<ApiResult<unknown>> {
   } catch (error) {
     const detail = getFetchErrorMessage(error)
     const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    return {
+      success: false,
+      error: isTimeout
+        ? 'El servidor tardó demasiado en responder. Intente de nuevo en unos segundos.'
+        : `Error de conexión con el servidor. ${detail}`,
+      code: 'NETWORK_ERROR',
+    }
+  }
+}
+
+/**
+ * Traduce los mensajes de error más comunes del backend (inglés) al español.
+ * Se aplica antes de mostrar cualquier toast o notificación al usuario.
+ */
+const BACKEND_ERROR_TRANSLATIONS: Record<string, string> = {
+  Unauthorized: 'No autorizado. Inicie sesión nuevamente.',
+  Forbidden: 'No tiene permisos para realizar esta acción.',
+  'Not Found': 'El recurso solicitado no fue encontrado.',
+  'Bad Request': 'La solicitud contiene datos inválidos.',
+  'Internal Server Error': 'Error interno del servidor. Intente más tarde.',
+  'must be a string': 'debe ser texto',
+  'must be a number': 'debe ser un número',
+  'should not be empty': 'no puede estar vacío',
+  'must be an email': 'debe ser un correo electrónico válido',
+  'is not valid': 'no es válido',
+  'already exists': 'ya existe en el sistema',
+  'too short': 'es demasiado corto',
+  'too long': 'es demasiado largo',
+  Conflict: 'Conflicto: el recurso ya existe o está en uso.',
+  'Payload Too Large': 'El archivo es demasiado grande.',
+  'Unsupported Media Type': 'El tipo de archivo no es compatible.',
+}
+
+const API_FIELD_LABELS: Record<string, string> = {
+  temaPrincipal: 'tema principal',
+  categoriaIds: 'categorías',
+  tipoNorma: 'tipo de norma',
+  enteEmisor: 'ente emisor',
+  fechaPublicacion: 'fecha de publicación',
+  titulo: 'título',
+  tituloIntegro: 'título íntegro',
+  nombreBreve: 'nombre breve',
+  file: 'archivo',
+  comentarios: 'comentarios',
+}
+
+function apiFieldLabel(field: string): string {
+  return API_FIELD_LABELS[field] ?? field
+}
+
+export function translateBackendError(message: string): string {
+  if (BACKEND_ERROR_TRANSLATIONS[message]) {
+    return BACKEND_ERROR_TRANSLATIONS[message]
+  }
+
+  let translated = message
+
+  translated = translated.replace(
+    /property\s+(\w+)\s+should not exist/gi,
+    (_, field: string) => `El campo «${apiFieldLabel(field)}» no está permitido.`,
+  )
+
+  translated = translated.replace(
+    /(\w+)\s+must be a UUID/gi,
+    (_, field: string) => `«${apiFieldLabel(field)}» debe ser un identificador válido.`,
+  )
+
+  translated = translated.replace(
+    /(\w+)\s+must be an array/gi,
+    (_, field: string) => `«${apiFieldLabel(field)}» debe ser una lista.`,
+  )
+
+  for (const [english, spanish] of Object.entries(BACKEND_ERROR_TRANSLATIONS)) {
+    translated = translated.replace(
+      new RegExp(`(\\w+)\\s+${english}`, 'gi'),
+      (_, field: string) => `«${apiFieldLabel(field)}» ${spanish}.`,
+    )
+    if (translated.toLowerCase().includes(english.toLowerCase())) {
+      translated = translated.replace(new RegExp(english, 'gi'), spanish)
+    }
+  }
+
+  return translated
+}
+
+export async function apiDelete(path: string): Promise<ApiResult<unknown>> {
+  const token = await getBearerToken()
+
+  if (!token) {
+    const failure = await getAuthFailure()
+    return { success: false, ...failure }
+  }
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+
+    // 204 No Content is a valid success response for DELETE
+    if (res.status === 204) {
+      return { success: true, data: null, status: 204 }
+    }
+
+    const data = await parseResponseBody(res)
+
+    if (!res.ok) {
+      const fallback =
+        res.status === 401
+          ? 'Sesión no válida o expirada. Inicie sesión nuevamente.'
+          : res.status === 404
+            ? 'El recurso que intenta eliminar no fue encontrado.'
+            : 'Error al eliminar el recurso.'
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API DELETE] ${path} → ${res.status}`, data)
+      }
+
+      return {
+        success: false,
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        details: getApiErrorDetails(data),
+        status: res.status,
+        code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
+        raw: data,
+      }
+    }
+
+    return { success: true, data, status: res.status }
+  } catch (error) {
+    const detail = getFetchErrorMessage(error)
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API DELETE] ${path} network error`, error)
+    }
 
     return {
       success: false,
@@ -380,7 +593,7 @@ export async function apiPost(path: string, body: unknown): Promise<ApiResult<un
 
       return {
         success: false,
-        error: getApiErrorMessage(data, fallback),
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -395,6 +608,203 @@ export async function apiPost(path: string, body: unknown): Promise<ApiResult<un
 
     if (process.env.NODE_ENV === 'development') {
       console.error(`[API POST JSON] ${path} network error`, error)
+    }
+
+    return {
+      success: false,
+      error: isTimeout
+        ? 'El servidor tardó demasiado en responder. Intente de nuevo en unos segundos.'
+        : `Error de conexión con el servidor. ${detail}`,
+      code: 'NETWORK_ERROR',
+    }
+  }
+}
+
+export async function apiPutFormData(path: string, source: FormData): Promise<ApiResult<unknown>> {
+  const token = await getBearerToken()
+
+  if (!token) {
+    const failure = await getAuthFailure()
+    return { success: false, ...failure }
+  }
+
+  const body = buildOutboundFormData(source)
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      body,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+
+    const data = await parseResponseBody(res)
+
+    if (!res.ok) {
+      const fallback =
+        res.status === 401
+          ? 'Sesión no válida o expirada. Inicie sesión nuevamente.'
+          : res.status === 400
+            ? 'La solicitud no cumple los requisitos del servidor.'
+            : 'Error del backend al procesar la solicitud.'
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API PUT] ${path} → ${res.status}`, data)
+      }
+
+      return {
+        success: false,
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        details: getApiErrorDetails(data),
+        status: res.status,
+        code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
+        raw: data,
+      }
+    }
+
+    return { success: true, data, status: res.status }
+  } catch (error) {
+    const detail = getFetchErrorMessage(error)
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API PUT] ${path} network error`, error)
+    }
+
+    return {
+      success: false,
+      error: isTimeout
+        ? 'El servidor tardó demasiado en responder. Intente de nuevo en unos segundos.'
+        : `Error de conexión con el servidor. ${detail}`,
+      code: 'NETWORK_ERROR',
+    }
+  }
+}
+
+export async function apiPatchFormData(
+  path: string,
+  source: FormData,
+): Promise<ApiResult<unknown>> {
+  const token = await getBearerToken()
+
+  if (!token) {
+    const failure = await getAuthFailure()
+    return { success: false, ...failure }
+  }
+
+  const body = buildOutboundFormData(source)
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      body,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+
+    const data = await parseResponseBody(res)
+
+    if (!res.ok) {
+      const fallback =
+        res.status === 401
+          ? 'Sesión no válida o expirada. Inicie sesión nuevamente.'
+          : res.status === 400
+            ? 'La solicitud no cumple los requisitos del servidor.'
+            : 'Error del backend al procesar la solicitud.'
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API PATCH multipart] ${path} → ${res.status}`, data)
+      }
+
+      return {
+        success: false,
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        details: getApiErrorDetails(data),
+        status: res.status,
+        code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
+        raw: data,
+      }
+    }
+
+    return { success: true, data, status: res.status }
+  } catch (error) {
+    const detail = getFetchErrorMessage(error)
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API PATCH multipart] ${path} network error`, error)
+    }
+
+    return {
+      success: false,
+      error: isTimeout
+        ? 'El servidor tardó demasiado en responder. Intente de nuevo en unos segundos.'
+        : `Error de conexión con el servidor. ${detail}`,
+      code: 'NETWORK_ERROR',
+    }
+  }
+}
+
+export async function apiPatch(path: string, body: unknown): Promise<ApiResult<unknown>> {
+  const token = await getBearerToken()
+
+  if (!token) {
+    const failure = await getAuthFailure()
+    return { success: false, ...failure }
+  }
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+
+    const data = await parseResponseBody(res)
+
+    if (!res.ok) {
+      const fallback =
+        res.status === 401
+          ? 'Sesión no válida o expirada. Inicie sesión nuevamente.'
+          : res.status === 400
+            ? 'La solicitud no cumple los requisitos del servidor.'
+            : 'Error del backend al procesar la solicitud.'
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API PATCH] ${path} → ${res.status}`, data)
+      }
+
+      return {
+        success: false,
+        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        details: getApiErrorDetails(data),
+        status: res.status,
+        code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
+        raw: data,
+      }
+    }
+
+    return { success: true, data, status: res.status }
+  } catch (error) {
+    const detail = getFetchErrorMessage(error)
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API PATCH] ${path} network error`, error)
     }
 
     return {

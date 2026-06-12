@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
+  testMatch: '**/*.spec.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -24,6 +25,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       API_BASE_URL: process.env.API_BASE_URL ?? 'https://biblioteca-legal-backend.onrender.com',
+      E2E_TEST_MODE: '1',
     },
   },
 })

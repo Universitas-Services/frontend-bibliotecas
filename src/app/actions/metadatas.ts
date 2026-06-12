@@ -1,6 +1,6 @@
 'use server'
 
-import { apiPost, apiGet, type ApiErrorCode } from '@/lib/api-client'
+import { apiPost, apiGet, apiPatch, type ApiErrorCode } from '@/lib/api-client'
 
 export interface CreateMetadataPayload {
   documentoId: string
@@ -54,4 +54,19 @@ export async function getMetadataByDocumentIdAction(documentoId: string) {
 export async function getAllMetadatasAction() {
   const result = await apiGet(`/metadatas`)
   return result
+}
+export async function updateMetadataAction(id: string, payload: Partial<CreateMetadataPayload>) {
+  const result = await apiPatch(`/metadatas/${id}`, payload)
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      details: result.details,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  return { success: true, data: result.data }
 }

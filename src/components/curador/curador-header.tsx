@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Search } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 type Breadcrumb = { label: string; href?: string; current?: boolean }
@@ -14,12 +13,13 @@ type HeaderConfig = {
   title: string
   subtitle?: string
   showSearch?: boolean
-  actions?: 'nueva-carga' | null
 }
 
 function getHeaderConfig(pathname: string): HeaderConfig | null {
   if (pathname === '/curador') return null
   if (pathname.startsWith('/curador/correcciones')) return null
+  if (pathname === '/curador/nueva-carga') return null
+  if (/^\/curador\/gestion-documental\/[^/]+$/.test(pathname)) return null
 
   if (pathname === '/curador/gestion-documental') {
     return {
@@ -28,17 +28,6 @@ function getHeaderConfig(pathname: string): HeaderConfig | null {
       subtitle:
         'Historial completo de documentos cargados a la plataforma para su procesamiento legal.',
       showSearch: true,
-    }
-  }
-
-  if (pathname === '/curador/nueva-carga') {
-    return {
-      breadcrumbs: [
-        { label: 'Nueva carga', href: '/curador/nueva-carga' },
-        { label: 'Nuevo documento' },
-      ],
-      title: 'Ingesta y clasificación avanzada',
-      actions: 'nueva-carga',
     }
   }
 
@@ -89,24 +78,6 @@ export function CuradorHeader() {
                 className="h-10 rounded-md border-[#0F1D30] bg-[#0F1D30] pl-9 text-[13px] font-medium text-white placeholder:text-[#6B7280] focus-visible:ring-1 focus-visible:ring-[#499DFE]"
               />
             </div>
-          ) : null}
-
-          {config.actions === 'nueva-carga' ? (
-            <>
-              <Button
-                variant="outline"
-                className="h-10 border-gray-300 px-6 font-medium text-gray-600 hover:bg-gray-50"
-              >
-                Guardar borrador
-              </Button>
-              <Button
-                type="submit"
-                form="nueva-carga-form"
-                className="h-10 bg-[#003D6F] px-6 font-medium text-white shadow-sm hover:bg-[#00315C]"
-              >
-                Publicar documento
-              </Button>
-            </>
           ) : null}
         </div>
       </div>

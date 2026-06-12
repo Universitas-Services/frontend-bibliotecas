@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Boxes,
+  FileText,
   Gavel,
   GitBranch,
   Info,
@@ -26,7 +27,10 @@ export type AdminNavSection = {
 export const adminNavSections: AdminNavSection[] = [
   {
     label: 'Administración',
-    items: [{ title: 'Usuarios', url: '/admin/usuarios', icon: Users }],
+    items: [
+      { title: 'Usuarios', url: '/admin/usuarios', icon: Users },
+      { title: 'Gestión Documental', url: '/admin/gestion-documental', icon: FileText },
+    ],
   },
   {
     label: 'Catálogo comercial',

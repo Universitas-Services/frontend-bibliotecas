@@ -18,6 +18,7 @@ import {
   type Subcarpeta,
   type CarpetaInterna,
 } from '@/app/actions/temas'
+import { getTipoNormaDisplayName } from '@/lib/temas-taxonomy'
 
 export interface ClassificationValues {
   temaPrincipalId: string
@@ -30,18 +31,19 @@ export interface ClassificationValues {
 
 interface DocumentClassificationProps {
   onChange: (values: ClassificationValues) => void
+  initialValues?: Partial<ClassificationValues>
 }
 
-export function DocumentClassification({ onChange }: DocumentClassificationProps) {
+export function DocumentClassification({ onChange, initialValues }: DocumentClassificationProps) {
   // Data from backend
   const [temas, setTemas] = useState<TemaPrincipal[]>([])
   const [tiposDocumento, setTiposDocumento] = useState<Subcarpeta[]>([])
   const [tiposNorma, setTiposNorma] = useState<CarpetaInterna[]>([])
 
   // Selected values
-  const [selectedTema, setSelectedTema] = useState('')
-  const [selectedTipoDoc, setSelectedTipoDoc] = useState('')
-  const [selectedTipoNorma, setSelectedTipoNorma] = useState('')
+  const [selectedTema, setSelectedTema] = useState(initialValues?.temaPrincipalId || '')
+  const [selectedTipoDoc, setSelectedTipoDoc] = useState(initialValues?.tipoDocumentoId || '')
+  const [selectedTipoNorma, setSelectedTipoNorma] = useState(initialValues?.tipoNormaId || '')
 
   // Loading states
   const [loadingTemas, setLoadingTemas] = useState(true)
@@ -53,7 +55,13 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
     async function fetchTemas() {
       try {
         const data = await getTemasAction()
-        setTemas(Array.isArray(data) ? data : [])
+        const temasList = Array.isArray(data) ? data : []
+        setTemas(temasList)
+
+        if (!selectedTema && initialValues?.temaPrincipalNombre) {
+          const match = temasList.find((t) => t.nombre === initialValues.temaPrincipalNombre)
+          if (match) setSelectedTema(match.id)
+        }
       } catch (error) {
         console.error('Error al cargar temas principales:', error)
       } finally {
@@ -61,6 +69,7 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
       }
     }
     fetchTemas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Load tipos de documento when tema changes
@@ -71,7 +80,13 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
       setLoadingTiposDoc(true)
       try {
         const data = await getTiposDocumentoAction(selectedTema)
-        setTiposDocumento(Array.isArray(data) ? data : [])
+        const tiposList = Array.isArray(data) ? data : []
+        setTiposDocumento(tiposList)
+
+        if (!selectedTipoDoc && initialValues?.tipoDocumentoNombre) {
+          const match = tiposList.find((td) => td.tipoNorma === initialValues.tipoDocumentoNombre)
+          if (match) setSelectedTipoDoc(match.id)
+        }
       } catch (error) {
         console.error('Error al cargar tipos de documento:', error)
       } finally {
@@ -79,6 +94,7 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
       }
     }
     fetchTiposDoc()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTema])
 
   // Load tipos de norma when tipo documento changes
@@ -89,7 +105,17 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
       setLoadingTiposNorma(true)
       try {
         const data = await getTiposNormaAction(selectedTipoDoc)
-        setTiposNorma(Array.isArray(data) ? data : [])
+        const normasList = Array.isArray(data) ? data : []
+        setTiposNorma(normasList)
+
+        if (!selectedTipoNorma && initialValues?.tipoNormaNombre) {
+          const match = normasList.find(
+            (tn) =>
+              tn.nombreCarpeta === initialValues.tipoNormaNombre ||
+              getTipoNormaDisplayName(tn) === initialValues.tipoNormaNombre,
+          )
+          if (match) setSelectedTipoNorma(match.id)
+        }
       } catch (error) {
         console.error('Error al cargar tipos de norma:', error)
       } finally {
@@ -97,6 +123,7 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
       }
     }
     fetchTiposNorma()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTipoDoc])
 
   // Notify parent when any value changes
@@ -107,14 +134,13 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
 
     onChange({
       temaPrincipalId: selectedTema,
-      temaPrincipalNombre: temaObj?.nombre ?? '',
+      temaPrincipalNombre: temaObj?.nombre ?? initialValues?.temaPrincipalNombre ?? '',
       tipoDocumentoId: selectedTipoDoc,
-      tipoDocumentoNombre: tipoDocObj?.tipoNorma ?? '',
+      tipoDocumentoNombre: tipoDocObj?.tipoNorma ?? initialValues?.tipoDocumentoNombre ?? '',
       tipoNormaId: selectedTipoNorma,
       tipoNormaNombre:
-        tipoNormaObj?.nombreCarpeta ||
-        ((tipoNormaObj as unknown as Record<string, unknown>)?.nombre as string) ||
-        ((tipoNormaObj as unknown as Record<string, unknown>)?.tipoNorma as string) ||
+        (tipoNormaObj ? getTipoNormaDisplayName(tipoNormaObj) : '') ||
+        initialValues?.tipoNormaNombre ||
         '',
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -290,10 +316,7 @@ export function DocumentClassification({ onChange }: DocumentClassificationProps
                 </SelectItem>
                 {tiposNorma.map((norma) => (
                   <SelectItem key={norma.id} value={norma.id}>
-                    {norma.nombreCarpeta ||
-                      ((norma as unknown as Record<string, unknown>).nombre as string) ||
-                      ((norma as unknown as Record<string, unknown>).tipoNorma as string) ||
-                      'Sin nombre'}
+                    {getTipoNormaDisplayName(norma) || 'Sin nombre'}
                   </SelectItem>
                 ))}
               </>
