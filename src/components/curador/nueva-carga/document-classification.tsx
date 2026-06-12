@@ -18,6 +18,7 @@ import {
   type Subcarpeta,
   type CarpetaInterna,
 } from '@/app/actions/temas'
+import { getTipoNormaDisplayName } from '@/lib/temas-taxonomy'
 
 export interface ClassificationValues {
   temaPrincipalId: string
@@ -108,7 +109,11 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
         setTiposNorma(normasList)
 
         if (!selectedTipoNorma && initialValues?.tipoNormaNombre) {
-          const match = normasList.find((tn) => tn.nombreCarpeta === initialValues.tipoNormaNombre)
+          const match = normasList.find(
+            (tn) =>
+              tn.nombreCarpeta === initialValues.tipoNormaNombre ||
+              getTipoNormaDisplayName(tn) === initialValues.tipoNormaNombre,
+          )
           if (match) setSelectedTipoNorma(match.id)
         }
       } catch (error) {
@@ -129,11 +134,14 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
 
     onChange({
       temaPrincipalId: selectedTema,
-      temaPrincipalNombre: temaObj?.nombre ?? '',
+      temaPrincipalNombre: temaObj?.nombre ?? initialValues?.temaPrincipalNombre ?? '',
       tipoDocumentoId: selectedTipoDoc,
-      tipoDocumentoNombre: tipoDocObj?.tipoNorma ?? '',
+      tipoDocumentoNombre: tipoDocObj?.tipoNorma ?? initialValues?.tipoDocumentoNombre ?? '',
       tipoNormaId: selectedTipoNorma,
-      tipoNormaNombre: tipoNormaObj?.nombreCarpeta ?? '',
+      tipoNormaNombre:
+        (tipoNormaObj ? getTipoNormaDisplayName(tipoNormaObj) : '') ||
+        initialValues?.tipoNormaNombre ||
+        '',
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTema, selectedTipoDoc, selectedTipoNorma, temas, tiposDocumento, tiposNorma])
@@ -308,7 +316,7 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
                 </SelectItem>
                 {tiposNorma.map((norma) => (
                   <SelectItem key={norma.id} value={norma.id}>
-                    {norma.nombreCarpeta || 'Sin nombre'}
+                    {getTipoNormaDisplayName(norma) || 'Sin nombre'}
                   </SelectItem>
                 ))}
               </>

@@ -1,12 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { LEGAL_STATUS_STYLES, mapBackendLegalStatus } from '@/lib/document-status'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
 
 export interface DocumentData {
   titulo?: string | null
   nombreBreve?: string | null
-  estadoLegal?: string | null
   matrizA?: { id?: string; nombreProducto?: string; nombre?: string } | null
   matrizB?: Array<{ id?: string; tituloArticulo?: string; titulo?: string }> | null
   tipoNorma?: string | null
@@ -24,6 +22,29 @@ interface DocumentMetadataProps {
   document: DocumentData | null
 }
 
+function MetadataBadgeField({
+  label,
+  value,
+  badgeClassName,
+}: {
+  label: string
+  value: string
+  badgeClassName: string
+}) {
+  return (
+    <div className="min-w-0 rounded-md bg-white p-5 shadow-sm">
+      <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+        {label}
+      </h4>
+      <Badge
+        className={`inline-flex h-auto max-w-full px-2.5 py-1 text-[10px] leading-snug font-bold whitespace-normal uppercase ${badgeClassName}`}
+      >
+        {value}
+      </Badge>
+    </div>
+  )
+}
+
 export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
   if (!document) {
     return (
@@ -33,8 +54,6 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
     )
   }
 
-  const legalStatus = mapBackendLegalStatus(document.estadoLegal)
-  const legalStyle = LEGAL_STATUS_STYLES[legalStatus]
   const matrices = extractDocumentMatrices(document as Record<string, unknown>)
 
   return (
@@ -63,33 +82,17 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
             </p>
           </div>
 
-          <div className="mx-4 mb-4 flex flex-col gap-4 md:flex-row">
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Estado legal
-              </h4>
-              <Badge
-                className={`rounded-sm px-2.5 py-0.5 text-[10px] font-bold uppercase ${legalStyle.badgeBg} ${legalStyle.badgeText}`}
-              >
-                {legalStyle.label}
-              </Badge>
-            </div>
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Tipo de documento
-              </h4>
-              <Badge className="rounded-sm bg-[#10130B] px-2.5 py-0.5 text-[10px] font-bold uppercase hover:bg-[#10130B]">
-                {document.tipoDocumento || 'No clasificado'}
-              </Badge>
-            </div>
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Tipo de norma
-              </h4>
-              <Badge className="rounded-sm bg-[#10130B] px-2.5 py-0.5 text-[10px] font-bold uppercase hover:bg-[#10130B]">
-                {document.tipoNorma?.replace('-', ' ') || 'No clasificado'}
-              </Badge>
-            </div>
+          <div className="mx-4 mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <MetadataBadgeField
+              label="Tipo de documento"
+              value={document.tipoDocumento || 'No clasificado'}
+              badgeClassName="bg-[#10130B] text-white"
+            />
+            <MetadataBadgeField
+              label="Tipo de norma"
+              value={document.tipoNorma?.replace(/-/g, ' ') || 'No clasificado'}
+              badgeClassName="bg-[#10130B] text-white"
+            />
           </div>
 
           <div className="mx-4 mb-4 flex flex-col gap-4 md:flex-row">

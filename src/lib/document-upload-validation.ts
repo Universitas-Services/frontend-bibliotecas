@@ -71,6 +71,14 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
     })
   }
 
+  const categoriaIds = formData.getAll('categoriaIds').filter((value) => String(value).trim())
+  if (categoriaIds.length === 0) {
+    issues.push({
+      field: 'categoriaIds',
+      message: 'Debe asignar al menos una categoría.',
+    })
+  }
+
   return issues
 }
 

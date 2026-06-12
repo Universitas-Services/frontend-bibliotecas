@@ -10,14 +10,15 @@ import {
   updateDocumentAction,
   getDocumentByIdAction,
 } from '@/app/actions/documents'
-import { uploadBorradorAction } from '@/app/actions/curador-documents'
+import { publicarBorradorAction, uploadBorradorAction } from '@/app/actions/curador-documents'
+import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
+import { mapBackendStatus } from '@/lib/document-status'
 import {
   createMetadataAction,
   updateMetadataAction,
   getMetadataByDocumentIdAction,
   type CreateMetadataPayload,
 } from '@/app/actions/metadatas'
-import { EstadoLegalField } from '@/components/shared/estado-legal-field'
 import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
 import {
@@ -65,6 +66,7 @@ export default function NuevaCargaPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = searchParams.get('edit')
+  const reenviarFromUrl = searchParams.get('reenviar') === '1'
 
   const formRef = useRef<HTMLFormElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -76,6 +78,7 @@ export default function NuevaCargaPage() {
     metadata: Record<string, unknown> | null
   } | null>(null)
   const [isLoadingInitial, setIsLoadingInitial] = useState(!!editId)
+  const [shouldReenviar, setShouldReenviar] = useState(reenviarFromUrl)
 
   // Classification state from child component
   const [classification, setClassification] = useState<ClassificationValues>({
@@ -101,16 +104,24 @@ export default function NuevaCargaPage() {
 
     async function loadInitialData() {
       try {
-        const [docRes, metaRes] = await Promise.all([
+        const [docRes, metaRes, notasRes] = await Promise.all([
           getDocumentByIdAction(editId!),
           getMetadataByDocumentIdAction(editId!),
+          getNotasByDocumentoAction(editId!),
         ])
 
         if (docRes.success) {
+          const documento = (docRes.data ?? {}) as Record<string, unknown>
           setInitialData({
-            documento: (docRes.data ?? {}) as Record<string, unknown>,
+            documento,
             metadata: metaRes.success && metaRes.data ? metaRes.data : null,
           })
+
+          const estado = mapBackendStatus(String(documento.estado || ''))
+          const tieneNotas = notasRes.success && notasRes.data.length > 0
+          if (!reenviarFromUrl && estado === 'borrador' && tieneNotas) {
+            setShouldReenviar(true)
+          }
           // Pre-populate classification names so DocumentClassification can auto-select IDs
           if (metaRes.success && metaRes.data) {
             setClassification((prev) => ({
@@ -180,6 +191,16 @@ export default function NuevaCargaPage() {
         description: formatUploadValidationIssues(filteredIssues),
         duration: 10000,
       })
+      return
+    }
+
+    if (!classification.temaPrincipalNombre?.trim()) {
+      toast.error('Seleccione el tema principal en la clasificación del documento.')
+      return
+    }
+
+    if (!classification.tipoDocumentoNombre?.trim() || !classification.tipoNormaNombre?.trim()) {
+      toast.error('Complete la clasificación: tipo de documento y tipo de norma.')
       return
     }
 
@@ -285,6 +306,22 @@ export default function NuevaCargaPage() {
             duration: 15000,
           },
         )
+      } else if (editId && shouldReenviar) {
+        const publicarResult = await publicarBorradorAction(documentoId, {
+          temaPrincipal: classification.temaPrincipalNombre.trim(),
+          categoriaIds: categorias.map(String).filter((id) => id.trim()),
+        })
+        if (!publicarResult.success) {
+          toast.warning('Cambios guardados, pero no se pudo reenviar a revisión.', {
+            description: [publicarResult.error, publicarResult.details].filter(Boolean).join('\n'),
+            duration: 15000,
+          })
+          setTimeout(() => {
+            router.push('/curador/gestion-documental')
+          }, 800)
+          return
+        }
+        toast.success('Documento corregido y enviado a revisión correctamente.')
       } else {
         toast.success(
           `¡Documento ${editId ? 'actualizado' : 'cargado'} y metadatos guardados exitosamente!`,
@@ -490,13 +527,7 @@ export default function NuevaCargaPage() {
               />
             </Card>
 
-            {/* 6. Estado legal */}
-            <Card className="p-8 shadow-sm">
-              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Estado legal</h2>
-              <EstadoLegalField defaultValue={readString(initialData?.documento?.estadoLegal)} />
-            </Card>
-
-            {/* 7. Matrices */}
+            {/* 6. Matrices */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Matrices de vinculación</h2>
               <MatricesSection
@@ -505,7 +536,7 @@ export default function NuevaCargaPage() {
               />
             </Card>
 
-            {/* 8. SEO */}
+            {/* 7. SEO */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Enriquecimiento y SEO</h2>
               <SeoSection />
@@ -547,6 +578,13 @@ export default function NuevaCargaPage() {
           </div>
         </div>
 
+        {shouldReenviar && editId ? (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Este documento fue devuelto con correcciones. Al guardar, se reenviará automáticamente a
+            revisión del administrador.
+          </div>
+        ) : null}
+
         <CuradorBottomBar variant="inline">
           <Button
             type="button"
@@ -565,8 +603,14 @@ export default function NuevaCargaPage() {
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {editId ? 'Actualizando...' : 'Publicando...'}
+                {editId && shouldReenviar
+                  ? 'Reenviando...'
+                  : editId
+                    ? 'Actualizando...'
+                    : 'Publicando...'}
               </>
+            ) : editId && shouldReenviar ? (
+              'Guardar y reenviar a revisión'
             ) : editId ? (
               'Guardar cambios'
             ) : (

@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button'
 import { FileCheck, ClipboardList, FileText } from 'lucide-react'
 
 import { DocumentActions } from '@/components/curador/document-actions'
+import {
+  getCuradorDocumentEditHref,
+  getCuradorDocumentViewHref,
+} from '@/lib/curador-document-routes'
 import type { DocumentStatus } from '@/lib/document-status'
 import { DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
 
@@ -18,6 +22,8 @@ export interface DocumentData {
   status: DocumentStatus
   revisor: string
   fecha: string
+  tieneNotas?: boolean
+  ultimaNota?: string
 }
 
 const STATUS_ICONS = {
@@ -32,9 +38,18 @@ const ICON_STYLES = {
   borrador: { iconBg: 'bg-[#E5E7EB]', iconColor: 'text-[#404551]' },
 } as const
 
+const DEVUELTO_STYLES = {
+  label: 'Devuelto para corrección',
+  badgeBg: 'bg-[#FEF3C7]',
+  badgeText: 'text-[#B45309]',
+} as const
+
 export function DocumentCard({ doc }: { doc: DocumentData }) {
-  const styles = DOCUMENT_STATUS_STYLES[doc.status]
-  const iconStyles = ICON_STYLES[doc.status]
+  const devuelto = doc.status === 'borrador' && doc.tieneNotas
+  const styles = devuelto ? DEVUELTO_STYLES : DOCUMENT_STATUS_STYLES[doc.status]
+  const iconStyles = devuelto
+    ? { iconBg: 'bg-[#FEF3C7]', iconColor: 'text-[#B45309]' }
+    : ICON_STYLES[doc.status]
   const Icon = STATUS_ICONS[doc.status]
 
   return (
@@ -56,7 +71,9 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
                 {styles.label}
               </Badge>
             </div>
-            <p className="line-clamp-1 text-[13px] font-medium text-[#6B7280]">{doc.subtitle}</p>
+            <p className="line-clamp-1 text-[13px] font-medium text-[#6B7280]">
+              {devuelto && doc.ultimaNota ? doc.ultimaNota : doc.subtitle}
+            </p>
           </div>
         </div>
 
@@ -73,12 +90,23 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {doc.status === 'borrador' && (
-              <Button size="sm" className="h-9 bg-[#005496] hover:bg-[#00315C]" asChild>
-                <Link href={`/curador/nueva-carga?edit=${doc.id}`}>Continuar edición</Link>
-              </Button>
-            )}
-            <DocumentActions documentId={doc.id} status={doc.status} variant="buttons" />
+            {doc.status === 'borrador' ? (
+              devuelto ? (
+                <Button size="sm" className="h-9 bg-[#B45309] hover:bg-[#92400E]" asChild>
+                  <Link href={getCuradorDocumentViewHref(doc.id, true)}>Ver correcciones</Link>
+                </Button>
+              ) : (
+                <Button size="sm" className="h-9 bg-[#005496] hover:bg-[#00315C]" asChild>
+                  <Link href={getCuradorDocumentEditHref(doc.id)}>Continuar edición</Link>
+                </Button>
+              )
+            ) : null}
+            <DocumentActions
+              documentId={doc.id}
+              status={doc.status}
+              tieneNotas={doc.tieneNotas}
+              variant="buttons"
+            />
           </div>
         </div>
       </div>

@@ -44,8 +44,16 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
           const matchedCats = categorias.filter((cat) =>
             initialIds.includes(cat.id || cat._id || ''),
           )
+
           if (matchedCats.length > 0) {
             setSelectedCategorias(matchedCats)
+          } else if (initialIds.length > 0) {
+            setSelectedCategorias(
+              initialIds.map((id) => ({
+                id,
+                nombre: 'Categoría asignada',
+              })),
+            )
           }
         }
       } catch (error) {

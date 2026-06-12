@@ -4,6 +4,7 @@ import { DocumentCard, type DocumentData } from './document-card'
 import { DocumentPagination } from './document-pagination'
 
 import { getCuradorDocumentsAction } from '@/app/actions/curador-documents'
+import { getDocumentosConNotasAction } from '@/app/actions/notas-internas'
 import { Button } from '@/components/ui/button'
 import { mapBackendStatus, type DocumentFilterId } from '@/lib/document-status'
 
@@ -15,7 +16,12 @@ type DocumentListProps = {
   limit?: number
 }
 
-function mapDocument(doc: Record<string, unknown>): DocumentData {
+type NotasPorDocumento = Record<string, { ultimaNota?: string }>
+
+function mapDocument(
+  doc: Record<string, unknown>,
+  notasPorDocumento: NotasPorDocumento,
+): DocumentData {
   const backendStatus = typeof doc.estado === 'string' ? doc.estado : ''
 
   let fecha = 'Sin fecha'
@@ -34,13 +40,18 @@ function mapDocument(doc: Record<string, unknown>): DocumentData {
         ? String((doc.revisor as Record<string, unknown>).nombre || 'No asignado')
         : 'No asignado'
 
+  const id = String(doc.id || doc._id || '')
+  const notasInfo = notasPorDocumento[id]
+
   return {
-    id: String(doc.id || doc._id || ''),
+    id,
     title: String(doc.titulo || doc.tituloIntegro || 'Documento sin título'),
     subtitle: String(doc.resumen || doc.nombreBreve || 'Sin descripción disponible'),
     status: mapBackendStatus(backendStatus),
     revisor,
     fecha,
+    tieneNotas: Boolean(notasInfo),
+    ultimaNota: notasInfo?.ultimaNota,
   }
 }
 
@@ -55,13 +66,25 @@ export async function DocumentList({
   page = 1,
   limit = 10,
 }: DocumentListProps) {
-  const response = await getCuradorDocumentsAction({
-    estado: estado === 'todos' ? undefined : estado,
-    busqueda,
-    tiempo,
-    page,
-    limit,
-  })
+  const [response, notasResponse] = await Promise.all([
+    getCuradorDocumentsAction({
+      estado: estado === 'todos' ? undefined : estado,
+      busqueda,
+      tiempo,
+      page,
+      limit,
+    }),
+    getDocumentosConNotasAction(),
+  ])
+
+  const notasPorDocumento: NotasPorDocumento = {}
+  if (notasResponse.success) {
+    for (const doc of notasResponse.data) {
+      if (doc.id) {
+        notasPorDocumento[doc.id] = { ultimaNota: doc.ultimaNota }
+      }
+    }
+  }
 
   if (!response.success) {
     const showReLogin = isAuthError(response.status, response.code)
@@ -83,7 +106,7 @@ export async function DocumentList({
   }
 
   const { documents, total, page: currentPage, limit: pageLimit, totalPages } = response.data
-  const mappedDocuments = documents.map(mapDocument)
+  const mappedDocuments = documents.map((doc) => mapDocument(doc, notasPorDocumento))
 
   if (mappedDocuments.length === 0) {
     return (

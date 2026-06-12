@@ -4,7 +4,6 @@ import { Pencil } from 'lucide-react'
 import { getDocumentByIdAction } from '@/app/actions/documents'
 import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { DocumentMetadataCard } from '@/components/curador/correcciones/document-metadata-card'
-import { EstadoLegalEditor } from '@/components/shared/estado-legal-editor'
 import { DocumentPreview } from '@/components/curador/correcciones/document-preview'
 import { CuradorPreviewActions } from '@/components/curador/curador-preview-actions'
 import { Button } from '@/components/ui/button'
@@ -74,16 +73,10 @@ export default async function CuradorDocumentPreviewPage({
       </div>
 
       <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-8 p-6 md:p-10 lg:grid-cols-12">
-        <div className="lg:col-span-7">
+        <div className="lg:sticky lg:top-6 lg:col-span-7 lg:self-start">
           <DocumentPreview documentId={id} />
         </div>
-        <div className="space-y-6 lg:col-span-5">
-          <EstadoLegalEditor
-            documentoId={id}
-            currentEstadoLegal={
-              typeof combinedData?.estadoLegal === 'string' ? combinedData.estadoLegal : null
-            }
-          />
+        <div className="lg:col-span-5 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto lg:pr-1">
           <DocumentMetadataCard document={combinedData} />
         </div>
       </div>

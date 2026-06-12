@@ -7,6 +7,10 @@ import { Eye, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { deleteDocumentAction } from '@/app/actions/documents'
+import {
+  getCuradorDocumentEditHref,
+  getCuradorDocumentViewHref,
+} from '@/lib/curador-document-routes'
 import type { DocumentStatus } from '@/lib/document-status'
 
 import { Button } from '@/components/ui/button'
@@ -25,16 +29,15 @@ type DocumentActionsProps = {
   documentId: string
   variant?: 'icons' | 'buttons'
   status?: DocumentStatus
+  tieneNotas?: boolean
 }
 
-function getViewHref(documentId: string, status?: DocumentStatus): string {
-  if (status === 'borrador') {
-    return `/curador/nueva-carga?edit=${documentId}`
-  }
-  return `/curador/gestion-documental/${documentId}`
-}
-
-export function DocumentActions({ documentId, variant = 'icons', status }: DocumentActionsProps) {
+export function DocumentActions({
+  documentId,
+  variant = 'icons',
+  status: _status,
+  tieneNotas = false,
+}: DocumentActionsProps) {
   const [, startTransition] = useTransition()
   const router = useRouter()
 
@@ -52,8 +55,8 @@ export function DocumentActions({ documentId, variant = 'icons', status }: Docum
     })
   }
 
-  const viewLink = getViewHref(documentId, status)
-  const editLink = `/curador/nueva-carga?edit=${documentId}`
+  const viewLink = getCuradorDocumentViewHref(documentId, tieneNotas)
+  const editLink = getCuradorDocumentEditHref(documentId)
 
   if (variant === 'buttons') {
     return (

@@ -5,8 +5,6 @@ export type DocumentClassificationFields = {
   tipoNormaNombre?: string
 }
 
-const VALID_ESTADO_LEGAL = new Set(['VIGENTE', 'REFORMADA', 'DEROGADA'])
-
 type BuildDocumentMultipartOptions = {
   outbound: FormData
   categorias: FormDataEntryValue[]
@@ -30,14 +28,15 @@ export function buildDocumentMultipartPayload({
   formData.set('titulo', (outbound.get('titulo') as string) || '')
   formData.set('tituloIntegro', (outbound.get('tituloIntegro') as string) || '')
   formData.set('nombreBreve', (outbound.get('nombreBreve') as string) || '')
-  formData.set(
-    'temaPrincipal',
-    classification.temaPrincipalNombre || (outbound.get('temaPrincipal') as string) || '',
-  )
-  formData.set(
-    'tipoNorma',
-    classification.tipoNormaNombre || (outbound.get('tipoNorma') as string) || '',
-  )
+  const temaPrincipalNombre = classification.temaPrincipalNombre?.trim() || ''
+  const tipoNormaNombre = classification.tipoNormaNombre?.trim() || ''
+
+  if (temaPrincipalNombre) {
+    formData.set('temaPrincipal', temaPrincipalNombre)
+  }
+  if (tipoNormaNombre) {
+    formData.set('tipoNorma', tipoNormaNombre)
+  }
   formData.set('enteEmisor', (outbound.get('enteEmisor') as string) || '')
   formData.set('fechaPublicacion', (outbound.get('fechaPublicacion') as string) || '')
 
@@ -65,13 +64,6 @@ export function buildDocumentMultipartPayload({
   const matrizBIds = parseMatrizBIdsFromForm(outbound)
   if (matrizBIds.length > 0) {
     formData.set('matrizBIds', matrizBIds.join(','))
-  }
-
-  const estadoLegal = String(outbound.get('estadoLegal') ?? '')
-    .trim()
-    .toUpperCase()
-  if (VALID_ESTADO_LEGAL.has(estadoLegal)) {
-    formData.set('estadoLegal', estadoLegal)
   }
 
   const leyViejaId = (outbound.get('leyViejaId') as string) || ''

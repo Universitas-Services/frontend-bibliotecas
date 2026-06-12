@@ -5,7 +5,6 @@ import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
 import { AdminApprovePanel } from '@/components/admin/gestion-documental/admin-approve-panel'
 import { AdminNotasPanel } from '@/components/admin/gestion-documental/admin-notas-panel'
-import { EstadoLegalEditor } from '@/components/shared/estado-legal-editor'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
 import { DocumentMetadataCard } from '@/components/curador/correcciones/document-metadata-card'
 import { DocumentPreview } from '@/components/curador/correcciones/document-preview'
@@ -107,12 +106,6 @@ export default async function AdminDocumentReviewPage({ params }: PageProps) {
                 documentoId={id}
                 status={status}
                 curatorMatrices={curatorMatrices}
-              />
-              <EstadoLegalEditor
-                documentoId={id}
-                currentEstadoLegal={
-                  typeof combinedData?.estadoLegal === 'string' ? combinedData.estadoLegal : null
-                }
               />
             </div>
             <Tabs defaultValue="notas" className="w-full">

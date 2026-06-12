@@ -7,6 +7,8 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { publicarBorradorAction } from '@/app/actions/curador-documents'
+import { getDocumentByIdAction } from '@/app/actions/documents'
+import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -25,6 +27,21 @@ type PublicarBorradorModalProps = {
   onOpenChange: (open: boolean) => void
 }
 
+function readCategoriaIds(documento: Record<string, unknown>): string[] {
+  const categorias = documento.categorias
+  if (!Array.isArray(categorias)) return []
+
+  return categorias
+    .map((item) => {
+      if (typeof item === 'object' && item !== null) {
+        const record = item as Record<string, unknown>
+        return String(record.id ?? record._id ?? '').trim()
+      }
+      return ''
+    })
+    .filter(Boolean)
+}
+
 export function PublicarBorradorModal({
   documentId,
   documentTitle,
@@ -37,8 +54,43 @@ export function PublicarBorradorModal({
 
   const handlePublish = () => {
     startTransition(async () => {
+      const [docRes, metaRes] = await Promise.all([
+        getDocumentByIdAction(documentId),
+        getMetadataByDocumentIdAction(documentId),
+      ])
+
+      if (!docRes.success) {
+        toast.error('No se pudo cargar el documento', {
+          description: docRes.error,
+        })
+        return
+      }
+
+      const documento = (docRes.data ?? {}) as Record<string, unknown>
+      const metadata =
+        metaRes.success && metaRes.data ? (metaRes.data as Record<string, unknown>) : null
+      const temaPrincipal =
+        (typeof metadata?.temaPrincipal === 'string' ? metadata.temaPrincipal : '') ||
+        (typeof documento.temaPrincipal === 'string' ? documento.temaPrincipal : '')
+      const categoriaIds = readCategoriaIds(documento)
+
+      if (!temaPrincipal.trim()) {
+        toast.error('Complete el tema principal antes de publicar.', {
+          description: 'Edite el borrador y seleccione la clasificación del documento.',
+        })
+        return
+      }
+
+      if (categoriaIds.length === 0) {
+        toast.error('Asigne al menos una categoría antes de publicar.', {
+          description: 'Edite el borrador y seleccione categorías en la taxonomía.',
+        })
+        return
+      }
+
       const result = await publicarBorradorAction(documentId, {
-        comentarios: comentarios.trim() || undefined,
+        temaPrincipal: temaPrincipal.trim(),
+        categoriaIds,
       })
 
       if (!result.success) {

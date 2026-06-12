@@ -17,7 +17,7 @@ export function CorrectionsFooter({ documentId }: CorrectionsActionsProps) {
         <Link href="/curador/correcciones">Volver al listado</Link>
       </Button>
       <Button className="h-11 bg-[#005496] px-6 font-semibold hover:bg-[#00315C]" asChild>
-        <Link href={`/curador/nueva-carga?edit=${documentId}`}>
+        <Link href={`/curador/nueva-carga?edit=${documentId}&reenviar=1`}>
           <SendHorizontal className="mr-2 h-4 w-4" />
           Corregir y Reenviar
         </Link>

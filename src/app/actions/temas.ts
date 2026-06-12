@@ -1,7 +1,15 @@
 'use server'
 
 import { apiPost, apiGet, apiDelete } from '@/lib/api-client'
+import {
+  normalizeCarpetaInterna,
+  type CarpetaInterna,
+  type Subcarpeta,
+  type TemaPrincipal,
+} from '@/lib/temas-taxonomy'
 import { revalidatePath } from 'next/cache'
+
+export type { CarpetaInterna, Subcarpeta, TemaPrincipal } from '@/lib/temas-taxonomy'
 
 export interface CrearTemaResponse {
   error?: string
@@ -86,35 +94,6 @@ export async function crearTipoNormaAction(
   return { data: result.data }
 }
 
-export interface CarpetaInterna {
-  id: string
-  nombreCarpeta: string
-  slug: string
-  gcsUri?: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-export interface Subcarpeta {
-  id: string
-  tipoNorma: string // Nombre del tipo de documento
-  slug: string
-  gcsUri?: string
-  createdAt?: string
-  updatedAt?: string
-  carpetasInternas?: CarpetaInterna[]
-}
-
-export interface TemaPrincipal {
-  id: string
-  nombre: string
-  slug: string
-  gcsUri?: string
-  createdAt?: string
-  updatedAt?: string
-  subcarpetas?: Subcarpeta[]
-}
-
 export async function getTemasAction(): Promise<TemaPrincipal[]> {
   const result = await apiGet('/admin/storage/temas')
 
@@ -155,7 +134,10 @@ export async function getTiposNormaAction(subcarpetaId: string): Promise<Carpeta
   }
 
   if (Array.isArray(result.data)) {
-    return result.data as CarpetaInterna[]
+    return result.data
+      .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+      .map(normalizeCarpetaInterna)
+      .filter((item) => item.id)
   }
 
   return []

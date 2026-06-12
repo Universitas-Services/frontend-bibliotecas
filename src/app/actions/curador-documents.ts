@@ -255,16 +255,15 @@ export async function uploadBorradorAction(formData: FormData) {
 }
 
 export type PublicarBorradorPayload = {
-  comentarios?: string
+  temaPrincipal: string
+  categoriaIds: string[]
 }
 
 export async function publicarBorradorAction(id: string, payload: PublicarBorradorPayload) {
-  const body: Record<string, string> = {}
-  if (payload.comentarios?.trim()) {
-    body.comentarios = payload.comentarios.trim()
-  }
-
-  const result = await apiPatch(`/documentos/borrador/${id}/publicar`, body)
+  const result = await apiPatch(`/documentos/borrador/${id}/publicar`, {
+    temaPrincipal: payload.temaPrincipal.trim(),
+    categoriaIds: payload.categoriaIds.map((categoriaId) => categoriaId.trim()).filter(Boolean),
+  })
 
   if (!result.success) {
     return {

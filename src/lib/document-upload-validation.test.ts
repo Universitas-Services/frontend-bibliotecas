@@ -29,6 +29,7 @@ describe('validateDocumentUploadForm', () => {
     formData.append('tipoDocumento', 'legislacion')
     formData.append('ambitoTerritorial', 'NACIONAL')
     formData.append('pais', 'Venezuela')
+    formData.append('categoriaIds', 'cat-uuid-1')
 
     expect(validateDocumentUploadForm(formData)).toEqual([])
   })
