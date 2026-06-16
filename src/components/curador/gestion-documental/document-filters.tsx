@@ -58,7 +58,7 @@ export function DocumentFilters() {
 
   return (
     <div className="mb-6 flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-2 xl:pb-0">
+      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] xl:pb-0 [&::-webkit-scrollbar]:hidden">
         {DOCUMENT_FILTER_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -75,7 +75,7 @@ export function DocumentFilters() {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] xl:pb-0 [&::-webkit-scrollbar]:hidden">
         <BusquedaFilter
           key={busquedaParam}
           initialValue={busquedaParam}

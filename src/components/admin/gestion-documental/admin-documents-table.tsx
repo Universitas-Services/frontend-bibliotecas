@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { FileText, ClipboardList, FileCheck } from 'lucide-react'
+import { FileText, ClipboardList, FileCheck, AlertTriangle } from 'lucide-react'
 
 import type { AdminDocumentItem } from '@/app/actions/admin-documents'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,7 @@ const STATUS_ICONS = {
   publicado: FileCheck,
   'en-revision': ClipboardList,
   borrador: FileText,
+  rechazado: AlertTriangle,
 } as const
 
 export function AdminDocumentsTable({

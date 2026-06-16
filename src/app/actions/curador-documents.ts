@@ -143,6 +143,8 @@ function filterByEstadoTab(
         return status === 'en-revision'
       case 'borradores':
         return status === 'borrador'
+      case 'rechazados':
+        return status === 'rechazado'
       default:
         return true
     }
@@ -255,13 +257,15 @@ export async function uploadBorradorAction(formData: FormData) {
 }
 
 export type PublicarBorradorPayload = {
-  temaPrincipal: string
+  subcarpetaNormaId: string
+  carpetaInternaId?: string
   categoriaIds: string[]
 }
 
 export async function publicarBorradorAction(id: string, payload: PublicarBorradorPayload) {
   const result = await apiPatch(`/documentos/borrador/${id}/publicar`, {
-    temaPrincipal: payload.temaPrincipal.trim(),
+    subcarpetaNormaId: payload.subcarpetaNormaId.trim(),
+    ...(payload.carpetaInternaId && { carpetaInternaId: payload.carpetaInternaId.trim() }),
     categoriaIds: payload.categoriaIds.map((categoriaId) => categoriaId.trim()).filter(Boolean),
   })
 

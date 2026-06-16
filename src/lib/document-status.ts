@@ -1,6 +1,6 @@
-export type DocumentStatus = 'publicado' | 'en-revision' | 'borrador'
+export type DocumentStatus = 'publicado' | 'en-revision' | 'borrador' | 'rechazado'
 
-export type DocumentFilterId = 'todos' | 'publicados' | 'en-revision' | 'borradores'
+export type DocumentFilterId = 'todos' | 'publicados' | 'en-revision' | 'borradores' | 'rechazados'
 
 export type LegalStatus = 'vigente' | 'reformada' | 'derogada' | 'sin-clasificar'
 
@@ -12,6 +12,7 @@ export const DOCUMENT_FILTER_TABS: {
   { id: 'publicados', label: 'Publicados' },
   { id: 'en-revision', label: 'En Revisión' },
   { id: 'borradores', label: 'Borradores' },
+  { id: 'rechazados', label: 'Rechazados' },
 ]
 
 export const DOCUMENT_STATUS_STYLES: Record<
@@ -44,6 +45,13 @@ export const DOCUMENT_STATUS_STYLES: Record<
     badgeText: 'text-[#404551]',
     dotColor: 'bg-[#404551]',
     tableStatusColor: 'bg-[#E5E7EB] text-[#404551]',
+  },
+  rechazado: {
+    label: 'Rechazado',
+    badgeBg: 'bg-[#FEE2E2]',
+    badgeText: 'text-[#DC2626]',
+    dotColor: 'bg-[#DC2626]',
+    tableStatusColor: 'bg-[#FEE2E2] text-[#DC2626]',
   },
 }
 
@@ -105,6 +113,10 @@ export function mapBackendStatus(estado: string): DocumentStatus {
     return 'en-revision'
   }
 
+  if (normalized === 'RECHAZADO' || normalized.includes('RECHAZADO')) {
+    return 'rechazado'
+  }
+
   return 'borrador'
 }
 
@@ -131,6 +143,8 @@ export function mapFilterTabToBackendEstado(tab: DocumentFilterId): string | und
       return 'PENDIENTE_REVISION'
     case 'borradores':
       return 'BORRADOR'
+    case 'rechazados':
+      return 'RECHAZADO'
     default:
       return undefined
   }
