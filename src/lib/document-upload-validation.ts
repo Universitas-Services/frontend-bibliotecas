@@ -7,32 +7,16 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
   const issues: UploadValidationIssue[] = []
 
   const tituloIntegro = String(formData.get('tituloIntegro') ?? '').trim()
-  const temaPrincipal = String(formData.get('temaPrincipal') ?? '').trim()
-  const tipoDocumento = String(formData.get('tipoDocumento') ?? '').trim()
-  const tipoNorma = String(formData.get('tipoNorma') ?? '').trim()
+  const subcarpetaNormaId = String(formData.get('subcarpetaNormaId') ?? '').trim()
   const enteEmisor = String(formData.get('enteEmisor') ?? '').trim()
   const fechaPublicacion = String(formData.get('fechaPublicacion') ?? '').trim()
   const pais = String(formData.get('pais') ?? '').trim()
   const ambitoTerritorial = String(formData.get('ambitoTerritorial') ?? '').trim()
 
-  if (!temaPrincipal) {
+  if (!subcarpetaNormaId) {
     issues.push({
-      field: 'temaPrincipal',
-      message: 'Seleccione un tema principal.',
-    })
-  }
-
-  if (!tipoDocumento) {
-    issues.push({
-      field: 'tipoDocumento',
-      message: 'Seleccione un tipo de documento.',
-    })
-  }
-
-  if (!tipoNorma) {
-    issues.push({
-      field: 'tipoNorma',
-      message: 'Seleccione un tipo de norma.',
+      field: 'subcarpetaNormaId',
+      message: 'Seleccione la clasificación completa del documento (tema y tipo de documento).',
     })
   }
 

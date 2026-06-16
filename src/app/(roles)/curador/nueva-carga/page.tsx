@@ -175,6 +175,10 @@ export default function NuevaCargaPage() {
     const categorias = outbound.getAll('categoriaIds')
     // Remove from outbound so it doesn't mess with other parts, we will handle it in uploadFormData
 
+    if (classification.tipoDocumentoId) {
+      outbound.set('subcarpetaNormaId', classification.tipoDocumentoId)
+    }
+
     if (selectedFile) {
       outbound.set('file', selectedFile, selectedFile.name)
     }
@@ -194,13 +198,8 @@ export default function NuevaCargaPage() {
       return
     }
 
-    if (!classification.temaPrincipalNombre?.trim()) {
-      toast.error('Seleccione el tema principal en la clasificación del documento.')
-      return
-    }
-
-    if (!classification.tipoDocumentoNombre?.trim() || !classification.tipoNormaNombre?.trim()) {
-      toast.error('Complete la clasificación: tipo de documento y tipo de norma.')
+    if (!classification.tipoDocumentoId?.trim()) {
+      toast.error('Complete la clasificación: tema y tipo de documento son requeridos.')
       return
     }
 
@@ -308,7 +307,8 @@ export default function NuevaCargaPage() {
         )
       } else if (editId && shouldReenviar) {
         const publicarResult = await publicarBorradorAction(documentoId, {
-          temaPrincipal: classification.temaPrincipalNombre.trim(),
+          subcarpetaNormaId: classification.tipoDocumentoId || '',
+          carpetaInternaId: classification.tipoNormaId || undefined,
           categoriaIds: categorias.map(String).filter((id) => id.trim()),
         })
         if (!publicarResult.success) {

@@ -14,7 +14,13 @@ type PageProps = {
   }>
 }
 
-const VALID_ESTADOS: DocumentFilterId[] = ['todos', 'publicados', 'en-revision', 'borradores']
+const VALID_ESTADOS: DocumentFilterId[] = [
+  'todos',
+  'publicados',
+  'en-revision',
+  'borradores',
+  'rechazados',
+]
 
 export default async function GestionDocumentalPage({ searchParams }: PageProps) {
   const params = await searchParams

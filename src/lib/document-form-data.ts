@@ -1,7 +1,11 @@
 import { parseMatrizBIdsFromForm } from '@/lib/document-matrices'
 
 export type DocumentClassificationFields = {
+  temaPrincipalId?: string
   temaPrincipalNombre?: string
+  tipoDocumentoId?: string
+  tipoDocumentoNombre?: string
+  tipoNormaId?: string
   tipoNormaNombre?: string
 }
 
@@ -28,15 +32,18 @@ export function buildDocumentMultipartPayload({
   formData.set('titulo', (outbound.get('titulo') as string) || '')
   formData.set('tituloIntegro', (outbound.get('tituloIntegro') as string) || '')
   formData.set('nombreBreve', (outbound.get('nombreBreve') as string) || '')
-  const temaPrincipalNombre = classification.temaPrincipalNombre?.trim() || ''
-  const tipoNormaNombre = classification.tipoNormaNombre?.trim() || ''
 
-  if (temaPrincipalNombre) {
-    formData.set('temaPrincipal', temaPrincipalNombre)
+  // IDs de la jerarquía de carpetas GCP
+  const subcarpetaNormaId = classification.tipoDocumentoId?.trim() || ''
+  const carpetaInternaId = classification.tipoNormaId?.trim() || ''
+
+  if (subcarpetaNormaId) {
+    formData.set('subcarpetaNormaId', subcarpetaNormaId)
   }
-  if (tipoNormaNombre) {
-    formData.set('tipoNorma', tipoNormaNombre)
+  if (carpetaInternaId) {
+    formData.set('carpetaInternaId', carpetaInternaId)
   }
+
   formData.set('enteEmisor', (outbound.get('enteEmisor') as string) || '')
   formData.set('fechaPublicacion', (outbound.get('fechaPublicacion') as string) || '')
 

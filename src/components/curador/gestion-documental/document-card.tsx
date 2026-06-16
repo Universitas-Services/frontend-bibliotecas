@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FileCheck, ClipboardList, FileText } from 'lucide-react'
+import { FileCheck, ClipboardList, FileText, AlertTriangle } from 'lucide-react'
 
 import { DocumentActions } from '@/components/curador/document-actions'
 import {
@@ -30,12 +30,14 @@ const STATUS_ICONS = {
   publicado: FileCheck,
   'en-revision': ClipboardList,
   borrador: FileText,
+  rechazado: AlertTriangle,
 } as const
 
 const ICON_STYLES = {
   publicado: { iconBg: 'bg-[#DCFCE7]', iconColor: 'text-[#16A34A]' },
   'en-revision': { iconBg: 'bg-[#00315C]', iconColor: 'text-white' },
   borrador: { iconBg: 'bg-[#E5E7EB]', iconColor: 'text-[#404551]' },
+  rechazado: { iconBg: 'bg-[#FEE2E2]', iconColor: 'text-[#DC2626]' },
 } as const
 
 const DEVUELTO_STYLES = {
@@ -44,12 +46,26 @@ const DEVUELTO_STYLES = {
   badgeText: 'text-[#B45309]',
 } as const
 
+const RECHAZADO_STYLES = {
+  label: 'Rechazado',
+  badgeBg: 'bg-[#FEE2E2]',
+  badgeText: 'text-[#DC2626]',
+} as const
+
 export function DocumentCard({ doc }: { doc: DocumentData }) {
-  const devuelto = doc.status === 'borrador' && doc.tieneNotas
-  const styles = devuelto ? DEVUELTO_STYLES : DOCUMENT_STATUS_STYLES[doc.status]
+  const rechazado = doc.status === 'rechazado'
+  const devuelto = !rechazado && doc.status === 'borrador' && doc.tieneNotas
+
+  const styles = rechazado
+    ? RECHAZADO_STYLES
+    : devuelto
+      ? DEVUELTO_STYLES
+      : DOCUMENT_STATUS_STYLES[doc.status]
+
   const iconStyles = devuelto
     ? { iconBg: 'bg-[#FEF3C7]', iconColor: 'text-[#B45309]' }
     : ICON_STYLES[doc.status]
+
   const Icon = STATUS_ICONS[doc.status]
 
   return (
@@ -90,7 +106,11 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            {doc.status === 'borrador' ? (
+            {rechazado ? (
+              <Button size="sm" className="h-9 bg-[#DC2626] hover:bg-[#B91C1C]" asChild>
+                <Link href={getCuradorDocumentEditHref(doc.id)}>Corregir y reenviar</Link>
+              </Button>
+            ) : doc.status === 'borrador' ? (
               devuelto ? (
                 <Button size="sm" className="h-9 bg-[#B45309] hover:bg-[#92400E]" asChild>
                   <Link href={getCuradorDocumentViewHref(doc.id, true)}>Ver correcciones</Link>

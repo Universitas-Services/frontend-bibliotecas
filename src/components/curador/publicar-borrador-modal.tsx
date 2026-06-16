@@ -69,14 +69,13 @@ export function PublicarBorradorModal({
       const documento = (docRes.data ?? {}) as Record<string, unknown>
       const metadata =
         metaRes.success && metaRes.data ? (metaRes.data as Record<string, unknown>) : null
-      const temaPrincipal =
-        (typeof metadata?.temaPrincipal === 'string' ? metadata.temaPrincipal : '') ||
-        (typeof documento.temaPrincipal === 'string' ? documento.temaPrincipal : '')
+      const subcarpetaNormaId = String(documento.subcarpetaNormaId || '').trim()
+      const carpetaInternaId = String(documento.carpetaInternaId || '').trim() || undefined
       const categoriaIds = readCategoriaIds(documento)
 
-      if (!temaPrincipal.trim()) {
-        toast.error('Complete el tema principal antes de publicar.', {
-          description: 'Edite el borrador y seleccione la clasificación del documento.',
+      if (!subcarpetaNormaId) {
+        toast.error('Complete la clasificación antes de publicar.', {
+          description: 'Edite el borrador y seleccione la clasificación completa del documento.',
         })
         return
       }
@@ -89,7 +88,8 @@ export function PublicarBorradorModal({
       }
 
       const result = await publicarBorradorAction(documentId, {
-        temaPrincipal: temaPrincipal.trim(),
+        subcarpetaNormaId,
+        carpetaInternaId,
         categoriaIds,
       })
 
