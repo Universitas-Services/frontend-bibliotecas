@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { DEFAULT_API_BASE_URL } from '@/lib/api'
+
 const cookiesMock = {
   get: vi.fn(),
   set: vi.fn(),
@@ -39,7 +41,7 @@ describe('logoutAction', () => {
     await expect(logoutAction()).rejects.toThrow('NEXT_REDIRECT')
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://biblioteca-legal-backend.onrender.com/auth/logout',
+      `${DEFAULT_API_BASE_URL}/auth/logout`,
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({

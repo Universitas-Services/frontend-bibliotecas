@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
+import { parseMetadatosObject } from '@/lib/metadata-schemas'
 
 export interface DocumentData {
   titulo?: string | null
@@ -9,13 +10,11 @@ export interface DocumentData {
   matrizB?: Array<{ id?: string; tituloArticulo?: string; titulo?: string }> | null
   tipoNorma?: string | null
   temaPrincipal?: string | null
-  enteEmisor?: string | null
   resumen?: string | null
   tipoDocumento?: string | null
-  numeroGaceta?: string | null
-  ambitoTerritorial?: string | null
   pais?: string | null
-  fechaPublicacion?: string | null
+  metadatos?: Record<string, unknown> | null
+  gacetaPdfUrl?: string | null
 }
 
 interface DocumentMetadataProps {
@@ -45,6 +44,38 @@ function MetadataBadgeField({
   )
 }
 
+function MetadataField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-white p-5 shadow-sm">
+      <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+        {label}
+      </h4>
+      <p className="text-[14px] font-bold text-[#005496]">{value}</p>
+    </div>
+  )
+}
+
+const METADATA_LABELS: Record<string, string> = {
+  rango: 'Rango normativo',
+  numeroGaceta: 'N° Gaceta',
+  numeroGacetaEstadal: 'N° Gaceta Estadal',
+  numeroGacetaMunicipal: 'N° Gaceta Municipal',
+  fechaPromulgacion: 'Fecha promulgación',
+  estado: 'Estado',
+  municipio: 'Municipio',
+  sala: 'Sala',
+  tribunal: 'Tribunal',
+  numeroSentencia: 'N° Sentencia',
+  numeroExpediente: 'N° Expediente',
+  magistradoPonente: 'Magistrado ponente',
+  juezPonente: 'Juez ponente',
+  decision: 'Decisión',
+  autor: 'Autor',
+  editorial: 'Editorial',
+  isbn: 'ISBN',
+  nombreRevista: 'Revista',
+}
+
 export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
   if (!document) {
     return (
@@ -55,6 +86,7 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
   }
 
   const matrices = extractDocumentMatrices(document as Record<string, unknown>)
+  const metadatos = parseMetadatosObject(document.metadatos)
 
   return (
     <div className="flex flex-col gap-6">
@@ -106,23 +138,37 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
             </div>
             <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
               <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Ámbito territorial
+                País
               </h4>
               <p className="text-[14px] font-bold text-[#00315C]">
-                {document.ambitoTerritorial || 'No especificado'}{' '}
-                {document.pais ? `(${document.pais})` : ''}
+                {document.pais || 'No especificado'}
               </p>
             </div>
           </div>
 
-          <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
-            <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-              Ente emisor
-            </h4>
-            <p className="text-[14px] font-bold text-[#005496]">
-              {document.enteEmisor || 'No especificado'}
-            </p>
-          </div>
+          {document.gacetaPdfUrl ? (
+            <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
+              <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+                Gaceta Oficial
+              </h4>
+              <a
+                href={document.gacetaPdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[14px] font-bold text-[#005496] underline"
+              >
+                Descargar PDF de Gaceta
+              </a>
+            </div>
+          ) : null}
+
+          {Object.keys(metadatos).length > 0 ? (
+            <div className="mx-4 mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {Object.entries(metadatos).map(([key, value]) => (
+                <MetadataField key={key} label={METADATA_LABELS[key] || key} value={value || '—'} />
+              ))}
+            </div>
+          ) : null}
 
           <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
             <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
@@ -145,31 +191,6 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
                   <span className="ml-1">Sin asignar</span>
                 )}
               </div>
-            </div>
-          </div>
-
-          <div className="mx-4 mb-5 flex flex-col gap-4 md:flex-row">
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Número de Gaceta
-              </h4>
-              <p className="text-[14px] font-bold text-[#005496]">
-                {document.numeroGaceta || 'No especificado'}
-              </p>
-            </div>
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                Fecha Publicación
-              </h4>
-              <p className="text-[14px] font-bold text-[#005496] capitalize">
-                {document.fechaPublicacion
-                  ? new Date(document.fechaPublicacion).toLocaleDateString('es-ES', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : 'No especificado'}
-              </p>
             </div>
           </div>
         </CardContent>

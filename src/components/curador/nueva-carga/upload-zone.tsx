@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CloudUpload } from 'lucide-react'
+import { CloudUpload, FileText } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -9,18 +9,24 @@ import { Checkbox } from '@/components/ui/checkbox'
 type UploadZoneProps = {
   disabled?: boolean
   onFileSelected: (file: File | null) => void
+  onGacetaSelected?: (file: File | null) => void
   initialFileName?: string
+  initialGacetaFileName?: string
   initialOcr?: boolean
 }
 
 export function UploadZone({
   disabled = false,
   onFileSelected,
+  onGacetaSelected,
   initialFileName,
-  initialOcr,
+  initialGacetaFileName,
+  initialOcr = true,
 }: UploadZoneProps) {
   const [fileName, setFileName] = useState<string | null>(initialFileName || null)
   const [fileSize, setFileSize] = useState<string>(initialFileName ? 'Ya subido' : '0.0 MB')
+  const [gacetaFileName, setGacetaFileName] = useState<string | null>(initialGacetaFileName || null)
+  const [ocrEnabled, setOcrEnabled] = useState(initialOcr)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -33,6 +39,17 @@ export function UploadZone({
     setFileName(null)
     setFileSize('0.0 MB')
     onFileSelected(null)
+  }
+
+  const handleGacetaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setGacetaFileName(file.name)
+      onGacetaSelected?.(file)
+      return
+    }
+    setGacetaFileName(null)
+    onGacetaSelected?.(null)
   }
 
   return (
@@ -55,10 +72,10 @@ export function UploadZone({
             ? fileName
             : initialFileName
               ? 'Arrastra un nuevo documento para reemplazarlo'
-              : 'Arrastra el documento original aquí o haz clic'}
+              : 'Arrastra el documento principal aquí o haz clic'}
         </h3>
         <p className="mb-6 text-sm text-gray-500">
-          {fileName ? 'Documento listo para subir' : 'Solo formato PDF, DOC — Máx. 50MB'}
+          {fileName ? 'Documento listo para subir' : 'PDF, DOC — Máx. 50MB'}
         </p>
         <div className="flex items-center gap-4">
           <Button
@@ -72,25 +89,42 @@ export function UploadZone({
         </div>
       </label>
 
+      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#CBD5E1] bg-white p-6 text-center transition-colors hover:bg-gray-50">
+        <input
+          type="file"
+          className="hidden"
+          accept=".pdf"
+          disabled={disabled}
+          onChange={handleGacetaChange}
+        />
+        <FileText className="mb-3 h-8 w-8 text-[#005496]" strokeWidth={1.5} />
+        <h3 className="mb-1 text-sm font-medium text-gray-800">
+          {gacetaFileName || initialGacetaFileName
+            ? gacetaFileName || initialGacetaFileName
+            : 'Gaceta Oficial (opcional)'}
+        </h3>
+        <p className="text-xs text-gray-500">PDF de la Gaceta asociada al documento</p>
+      </label>
+
+      <input type="hidden" name="ocrHabilitado" value={ocrEnabled ? 'true' : 'false'} />
+
       <div className="flex items-start space-x-3">
         <Checkbox
           id="ocr"
-          name="soloLecturaImagen"
-          value="true"
-          defaultChecked={initialOcr}
+          checked={ocrEnabled}
+          onCheckedChange={(checked) => setOcrEnabled(checked === true)}
           className="mt-1 border-gray-300"
           disabled={disabled}
         />
         <div className="grid gap-1.5 leading-none">
           <label
             htmlFor="ocr"
-            className="cursor-pointer text-sm leading-none font-medium text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="cursor-pointer text-sm leading-none font-medium text-gray-700"
           >
-            Solo lectura de imagen (desactivar OCR)
+            Habilitar OCR
           </label>
           <p className="text-sm leading-relaxed text-gray-500">
-            Active esta opción si el documento es una imagen pura o un escaneo que no requiere
-            procesamiento de texto inteligente.
+            Desactive solo si el documento es imagen pura y no requiere extracción de texto.
           </p>
         </div>
       </div>

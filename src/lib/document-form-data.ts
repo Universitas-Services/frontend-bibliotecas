@@ -5,8 +5,8 @@ export type DocumentClassificationFields = {
   temaPrincipalNombre?: string
   tipoDocumentoId?: string
   tipoDocumentoNombre?: string
-  tipoNormaId?: string
-  tipoNormaNombre?: string
+  carpetaInternaId?: string
+  carpetaPathNames?: string[]
 }
 
 type BuildDocumentMultipartOptions = {
@@ -14,14 +14,44 @@ type BuildDocumentMultipartOptions = {
   categorias: FormDataEntryValue[]
   classification: DocumentClassificationFields
   file?: File | null
+  gacetaFile?: File | null
+  metadatos?: Record<string, unknown>
 }
 
-/** Payload multipart compartido por upload y borrador (mismos campos que aceptará el API). */
+function parseStringArrayValue(raw: string): string[] {
+  const trimmed = raw.trim()
+  if (!trimmed) return []
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown
+    if (Array.isArray(parsed)) {
+      return parsed.map(String).filter((item) => item.trim())
+    }
+  } catch {
+    // fallback below
+  }
+
+  return trimmed
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function readStringArray(formData: FormData, key: string): string[] {
+  const values = formData.getAll(key).filter((entry) => String(entry).trim())
+  if (values.length === 0) return []
+
+  return values.flatMap((entry) => parseStringArrayValue(String(entry)))
+}
+
+/** Payload multipart compartido por upload, borrador y edición. */
 export function buildDocumentMultipartPayload({
   outbound,
   categorias,
   classification,
   file,
+  gacetaFile,
+  metadatos,
 }: BuildDocumentMultipartOptions): FormData {
   const formData = new FormData()
 
@@ -29,13 +59,16 @@ export function buildDocumentMultipartPayload({
     formData.set('file', file, file.name)
   }
 
+  if (gacetaFile) {
+    formData.set('gacetaFile', gacetaFile, gacetaFile.name)
+  }
+
   formData.set('titulo', (outbound.get('titulo') as string) || '')
   formData.set('tituloIntegro', (outbound.get('tituloIntegro') as string) || '')
   formData.set('nombreBreve', (outbound.get('nombreBreve') as string) || '')
 
-  // IDs de la jerarquía de carpetas GCP
   const subcarpetaNormaId = classification.tipoDocumentoId?.trim() || ''
-  const carpetaInternaId = classification.tipoNormaId?.trim() || ''
+  const carpetaInternaId = classification.carpetaInternaId?.trim() || ''
 
   if (subcarpetaNormaId) {
     formData.set('subcarpetaNormaId', subcarpetaNormaId)
@@ -44,25 +77,35 @@ export function buildDocumentMultipartPayload({
     formData.set('carpetaInternaId', carpetaInternaId)
   }
 
-  formData.set('enteEmisor', (outbound.get('enteEmisor') as string) || '')
-  formData.set('fechaPublicacion', (outbound.get('fechaPublicacion') as string) || '')
-
   const resumen = (outbound.get('resumen') as string) || ''
   if (resumen) {
     formData.set('resumen', resumen)
   }
 
-  const keywords = outbound
-    .getAll('keywords')
-    .filter((keyword) => keyword)
-    .map(String)
-  if (keywords.length > 0) {
-    formData.set('keywords', keywords.join(','))
+  const pais = (outbound.get('pais') as string) || ''
+  if (pais) {
+    formData.set('pais', pais)
   }
 
-  const soloLecturaImagen = outbound.get('soloLecturaImagen')
-  if (soloLecturaImagen === 'true' || soloLecturaImagen === 'on') {
-    formData.set('soloLecturaImagen', 'true')
+  const ocrHabilitado = outbound.get('ocrHabilitado')
+  formData.set(
+    'ocrHabilitado',
+    ocrHabilitado === 'true' || ocrHabilitado === 'on' ? 'true' : 'false',
+  )
+
+  const jerarquiaSuperiorId = (outbound.get('jerarquiaSuperiorId') as string) || ''
+  if (jerarquiaSuperiorId) {
+    formData.set('jerarquiaSuperiorId', jerarquiaSuperiorId)
+  }
+
+  const documentoRelacionadoId = (outbound.get('documentoRelacionadoId') as string) || ''
+  if (documentoRelacionadoId) {
+    formData.set('documentoRelacionadoId', documentoRelacionadoId)
+  }
+
+  const etiquetas = readStringArray(outbound, 'etiquetas')
+  if (etiquetas.length > 0) {
+    formData.set('etiquetas', JSON.stringify(etiquetas))
   }
 
   const matrizAId = (outbound.get('matrizAId') as string) || ''
@@ -78,7 +121,11 @@ export function buildDocumentMultipartPayload({
 
   const categoriaIds = categorias.filter((cat) => cat).map(String)
   if (categoriaIds.length > 0) {
-    formData.set('categoriaIds', categoriaIds.join(','))
+    formData.set('categoriaIds', JSON.stringify(categoriaIds))
+  }
+
+  if (metadatos && Object.keys(metadatos).length > 0) {
+    formData.set('metadatos', JSON.stringify(metadatos))
   }
 
   return formData
