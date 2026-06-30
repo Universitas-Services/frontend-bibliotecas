@@ -4,16 +4,24 @@ import { useRef, useState, useTransition, useCallback, useEffect, useMemo } from
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 
-import {
-  uploadDocumentAction,
-  uploadReformaAction,
-  updateDocumentAction,
-  getDocumentByIdAction,
-} from '@/app/actions/documents'
-import { publicarBorradorAction, uploadBorradorAction } from '@/app/actions/curador-documents'
+import { toastError, toastSuccess, toastWarning } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
+
+import { getDocumentByIdAction } from '@/app/actions/documents'
+import { publicarBorradorAction } from '@/app/actions/curador-documents'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
 import { mapBackendStatus } from '@/lib/document-status'
-import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
+import {
+  buildDocumentMultipartPayload,
+  resolveGacetaUploadFile,
+  resolvePrimaryUploadFile,
+} from '@/lib/document-form-data'
+import {
+  updateDocumentClient,
+  uploadBorradorClient,
+  uploadDocumentClient,
+  uploadReformaClient,
+} from '@/lib/document-upload-client'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
 import {
   buildMetadatosFromForm,
@@ -182,11 +190,11 @@ export default function NuevaCargaPage() {
             setMetadatosValues(parsedMetadatos)
           }
         } else {
-          toast.error('Error al cargar el documento original', { description: docRes.error })
+          toastError(USER_MSG.error.loadDocument, docRes.error)
         }
       } catch (err) {
         console.error('Error fetching edit data:', err)
-        toast.error('Error de conexión al cargar los datos')
+        toastError(USER_MSG.error.loadDocument, null, USER_MSG.common.connection)
       } finally {
         setIsLoadingInitial(false)
       }
@@ -201,12 +209,20 @@ export default function NuevaCargaPage() {
     if (isPending) return
 
     if (!selectedFile && !editId) {
-      toast.error('Debe seleccionar un archivo PDF o DOC antes de publicar.')
+      toastError(USER_MSG.validation.selectFilePublish)
       return
     }
 
     const form = formRef.current ?? event.currentTarget
     const outbound = prepareOutboundForm(form, classification)
+    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
+    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
+
+    if (!primaryFile && !editId) {
+      toastError(USER_MSG.validation.selectFilePublish)
+      return
+    }
+
     const categorias = outbound.getAll('categoriaIds')
 
     const validationIssues = validateDocumentUploadForm(outbound, {
@@ -215,7 +231,7 @@ export default function NuevaCargaPage() {
     })
 
     if (validationIssues.length > 0) {
-      toast.error('Complete los campos obligatorios', {
+      toast.error(USER_MSG.validation.requiredFields, {
         description: formatUploadValidationIssues(validationIssues),
         duration: 10000,
       })
@@ -226,12 +242,12 @@ export default function NuevaCargaPage() {
     const leyViejaId = String(outbound.get('leyViejaId') ?? '').trim()
 
     if (isReforma && !leyViejaId) {
-      toast.error('Seleccione la ley original que está siendo reformada.')
+      toastError(USER_MSG.validation.reformaLey)
       return
     }
 
     if (isReforma && editId) {
-      toast.error('La edición como reforma aún no está disponible. Cree una nueva carga.')
+      toastError(USER_MSG.validation.reformaEditUnavailable)
       return
     }
 
@@ -241,35 +257,36 @@ export default function NuevaCargaPage() {
         outbound,
         categorias,
         classification,
-        file: selectedFile,
-        gacetaFile: selectedGacetaFile,
+        file: primaryFile,
+        gacetaFile,
         metadatos,
       })
 
       const documentResponse = editId
-        ? await updateDocumentAction(editId, uploadFormData)
+        ? await updateDocumentClient(editId, uploadFormData)
         : isReforma
-          ? await uploadReformaAction(uploadFormData)
-          : await uploadDocumentAction(uploadFormData)
+          ? await uploadReformaClient(uploadFormData)
+          : await uploadDocumentClient(uploadFormData)
 
       if (documentResponse.error) {
         const isAuth =
           documentResponse.status === 401 ||
           documentResponse.code === 'TOKEN_EXPIRED' ||
           documentResponse.code === 'NO_TOKEN'
-        const statusLabel = documentResponse.status ? ` (${documentResponse.status})` : ''
-        toast.error(`Error al ${editId ? 'actualizar' : 'subir'} el documento${statusLabel}`, {
-          description: [documentResponse.error, documentResponse.details]
-            .filter(Boolean)
-            .join('\n'),
-          duration: 15000,
-          action: isAuth
-            ? {
-                label: 'Iniciar sesión',
-                onClick: () => router.push('/login?logout=1'),
-              }
-            : undefined,
-        })
+        toastError(
+          editId ? USER_MSG.error.saveDocument : USER_MSG.error.uploadDocument,
+          [documentResponse.error, documentResponse.details].filter(Boolean).join('\n'),
+          undefined,
+          {
+            duration: 15000,
+            action: isAuth
+              ? {
+                  label: 'Iniciar sesión',
+                  onClick: () => router.push('/login?logout=1'),
+                }
+              : undefined,
+          },
+        )
         return
       }
 
@@ -282,9 +299,7 @@ export default function NuevaCargaPage() {
         ''
 
       if (!documentoId) {
-        toast.warning('Documento subido, pero no se pudo obtener el ID de respuesta.', {
-          duration: 10000,
-        })
+        toastWarning(USER_MSG.error.partialUpload, null, { duration: 10000 })
         setTimeout(() => router.push('/curador/gestion-documental'), 800)
         return
       }
@@ -296,16 +311,17 @@ export default function NuevaCargaPage() {
           categoriaIds: categorias.map(String).filter((id) => id.trim()),
         })
         if (!publicarResult.success) {
-          toast.warning('Cambios guardados, pero no se pudo reenviar a revisión.', {
-            description: [publicarResult.error, publicarResult.details].filter(Boolean).join('\n'),
-            duration: 15000,
-          })
+          toastWarning(
+            USER_MSG.error.partialResubmit,
+            [publicarResult.error, publicarResult.details].filter(Boolean).join('\n'),
+            { duration: 15000 },
+          )
           setTimeout(() => router.push('/curador/gestion-documental'), 800)
           return
         }
-        toast.success('Documento corregido y enviado a revisión correctamente.')
+        toastSuccess(USER_MSG.success.documentCorrected)
       } else {
-        toast.success(`¡Documento ${editId ? 'actualizado' : 'cargado'} exitosamente!`)
+        toastSuccess(editId ? USER_MSG.success.documentUpdated : USER_MSG.success.documentUploaded)
       }
 
       setTimeout(() => router.push('/curador/gestion-documental'), 800)
@@ -316,7 +332,7 @@ export default function NuevaCargaPage() {
     if (isPending) return
 
     if (!selectedFile && !editId) {
-      toast.error('Debe seleccionar un archivo PDF o DOC antes de guardar el borrador.')
+      toastError(USER_MSG.validation.selectFileDraft)
       return
     }
 
@@ -324,10 +340,18 @@ export default function NuevaCargaPage() {
     if (!form) return
 
     const outbound = prepareOutboundForm(form, classification)
+    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
+    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
+
+    if (!primaryFile && !editId) {
+      toastError(USER_MSG.validation.selectFileDraft)
+      return
+    }
+
     const validationIssues = validateBorradorForm(outbound)
 
     if (validationIssues.length > 0) {
-      toast.error('Complete los campos obligatorios', {
+      toast.error(USER_MSG.validation.requiredFields, {
         description: formatUploadValidationIssues(validationIssues),
         duration: 10000,
       })
@@ -341,34 +365,38 @@ export default function NuevaCargaPage() {
         outbound,
         categorias,
         classification,
-        file: selectedFile,
-        gacetaFile: selectedGacetaFile,
+        file: primaryFile,
+        gacetaFile,
         metadatos,
       })
 
       const response = editId
-        ? await updateDocumentAction(editId, borradorFormData)
-        : await uploadBorradorAction(borradorFormData)
+        ? await updateDocumentClient(editId, borradorFormData)
+        : await uploadBorradorClient(borradorFormData)
 
       if (response.error) {
         const isAuth =
           response.status === 401 ||
           response.code === 'TOKEN_EXPIRED' ||
           response.code === 'NO_TOKEN'
-        toast.error('Error al guardar el borrador', {
-          description: [response.error, response.details].filter(Boolean).join('\n'),
-          duration: 15000,
-          action: isAuth
-            ? {
-                label: 'Iniciar sesión',
-                onClick: () => router.push('/login?logout=1'),
-              }
-            : undefined,
-        })
+        toastError(
+          USER_MSG.error.saveDraft,
+          [response.error, response.details].filter(Boolean).join('\n'),
+          undefined,
+          {
+            duration: 15000,
+            action: isAuth
+              ? {
+                  label: 'Iniciar sesión',
+                  onClick: () => router.push('/login?logout=1'),
+                }
+              : undefined,
+          },
+        )
         return
       }
 
-      toast.success('Borrador guardado correctamente.')
+      toastSuccess(USER_MSG.success.draftSaved)
       setTimeout(() => router.push('/curador/gestion-documental?estado=borradores'), 800)
     })
   }

@@ -135,22 +135,26 @@ export function mapBackendLegalStatus(estadoLegal: string | null | undefined): L
   return 'sin-clasificar'
 }
 
-export function mapFilterTabToBackendEstado(tab: DocumentFilterId): string | undefined {
+/** Query param `estado` para GET /documentos/curador/list */
+export function mapFilterTabToBackendEstado(tab?: DocumentFilterId): string | undefined {
+  if (!tab || tab === 'todos') return undefined
+
   switch (tab) {
     case 'publicados':
-      return 'PUBLICADO'
+      return 'PUBLICADOS'
     case 'en-revision':
-      return 'PENDIENTE_REVISION'
+      return 'EN_REVISION'
     case 'borradores':
-      return 'BORRADOR'
+      return 'BORRADORES'
     case 'rechazados':
-      return 'RECHAZADO'
+      return 'RECHAZADOS'
     default:
       return undefined
   }
 }
 
-export function mapTimeFilterToBackend(tiempo: string): string | undefined {
+/** Query param `tiempo` para GET /documentos/curador/list */
+export function mapTimeFilterToBackend(tiempo?: string): string | undefined {
   switch (tiempo) {
     case '7d':
       return '7_DIAS'

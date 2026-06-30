@@ -10,6 +10,7 @@ import { getCategoriasAdmin } from '@/app/actions/categorias'
 interface CategoriaItem {
   id?: string
   _id?: string
+  uuid?: string
   nombre: string
 }
 
@@ -21,12 +22,15 @@ interface TaxonomySectionProps {
 
 function getInitialCategoriaIds(initialCategorias: InitialCategoria[]): string[] {
   return initialCategorias
-    .map((categoria) => (typeof categoria === 'string' ? categoria : categoria.id || categoria._id))
-    .filter((id): id is string => Boolean(id))
+    .map((categoria) => {
+      if (typeof categoria === 'string') return categoria.trim()
+      return String(categoria.id || categoria._id || '').trim()
+    })
+    .filter(Boolean)
 }
 
 function getCategoriaId(cat: CategoriaItem): string {
-  return cat.id || cat._id || ''
+  return String(cat.id || cat._id || cat.uuid || '').trim()
 }
 
 export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}) {
@@ -72,6 +76,7 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
 
   const handleSelectCategoria = (cat: CategoriaItem) => {
     const catId = getCategoriaId(cat)
+    if (!catId) return
     if (!selectedCategorias.some((c) => getCategoriaId(c) === catId)) {
       setSelectedCategorias([...selectedCategorias, cat])
     }
@@ -124,13 +129,17 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
                   className="flex items-center gap-1.5 rounded-full bg-[#00315C] px-3 py-1 font-normal text-white hover:bg-[#00315C]/90"
                 >
                   {cat.nombre}
-                  <X
-                    className="h-3 w-3 cursor-pointer"
+                  <button
+                    type="button"
                     onClick={(event) => {
                       event.stopPropagation()
                       handleRemoveCategoria(getCategoriaId(cat))
                     }}
-                  />
+                    className="rounded-full hover:text-red-200"
+                    aria-label={`Quitar ${cat.nombre}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </Badge>
               ))}
 
@@ -173,6 +182,7 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
                 <button
                   key={getCategoriaId(cat)}
                   type="button"
+                  onPointerDown={(event) => event.preventDefault()}
                   onClick={() => handleSelectCategoria(cat)}
                   className="w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                 >

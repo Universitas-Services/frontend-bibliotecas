@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +20,7 @@ export default function CrearTemaPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!nombreTema.trim()) {
-      toast.error('El nombre del tema es requerido')
+      toastError(USER_MSG.validation.temaName)
       return
     }
 
@@ -27,13 +28,11 @@ export default function CrearTemaPage() {
       const response = await crearTemaAction(nombreTema.trim(), descripcion.trim())
 
       if (response.error) {
-        toast.error('Error al crear el tema', {
-          description: response.error || response.details,
-        })
+        toastError(USER_MSG.error.createTema, response.error || response.details)
         return
       }
 
-      toast.success('Tema principal creado exitosamente')
+      toastSuccess(USER_MSG.success.temaCreated)
       router.push('/admin/taxonomia/temas')
     })
   }

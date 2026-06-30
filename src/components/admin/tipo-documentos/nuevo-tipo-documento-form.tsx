@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { Save, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,13 +38,9 @@ export function NuevoTipoDocumentoForm({ temas }: NuevoTipoDocumentoFormProps) {
       const result = await crearTipoDocumentoAction(temaId, tipoDocumento, descripcion)
 
       if (result.error) {
-        toast.error('Error al crear tipo de documento', {
-          description: result.error,
-        })
+        toastError(USER_MSG.error.createTipoDocumento, result.error)
       } else {
-        toast.success('Tipo de documento creado', {
-          description: `Se ha creado el tipo de documento exitosamente.`,
-        })
+        toastSuccess(USER_MSG.success.tipoDocumentoCreated)
         setTipoDocumento('')
         setDescripcion('')
         setTemaId('')

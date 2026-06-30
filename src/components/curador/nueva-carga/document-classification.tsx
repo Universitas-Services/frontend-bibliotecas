@@ -231,7 +231,11 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
               placeholder={loadingTemas ? 'Cargando temas...' : 'Seleccione un área temática...'}
             />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent
+            position="popper"
+            sideOffset={4}
+            className="w-[var(--radix-select-trigger-width)]"
+          >
             {loadingTemas ? (
               <div className="flex items-center justify-center py-4 text-sm text-gray-500">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -269,7 +273,11 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
               }
             />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent
+            position="popper"
+            sideOffset={4}
+            className="w-[var(--radix-select-trigger-width)]"
+          >
             {tiposDocumento.map((tipo) => (
               <SelectItem key={tipo.id} value={tipo.id}>
                 {tipo.tipoNorma}
@@ -301,7 +309,11 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
                 }
               />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent
+              position="popper"
+              sideOffset={4}
+              className="w-[var(--radix-select-trigger-width)]"
+            >
               {level.loading ? (
                 <div className="flex items-center justify-center py-4 text-sm text-gray-500">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,5 +1,105 @@
 import { parseMatrizBIdsFromForm } from '@/lib/document-matrices'
 
+function isNonEmptyUploadFile(value: unknown): value is File {
+  return value instanceof File && value.size > 0
+}
+
+/** Resuelve el archivo principal desde estado React o desde el FormData del formulario. */
+export function resolvePrimaryUploadFile(
+  selected: File | null | undefined,
+  outbound: FormData,
+): File | null {
+  if (isNonEmptyUploadFile(selected)) return selected
+
+  const fromForm = outbound.get('file')
+  if (isNonEmptyUploadFile(fromForm)) return fromForm
+
+  return null
+}
+
+/** Resuelve la gaceta opcional desde estado React o desde el FormData del formulario. */
+export function resolveGacetaUploadFile(
+  selected: File | null | undefined,
+  outbound: FormData,
+): File | null {
+  if (isNonEmptyUploadFile(selected)) return selected
+
+  const fromForm = outbound.get('gacetaFile')
+  if (isNonEmptyUploadFile(fromForm)) return fromForm
+
+  return null
+}
+
+export type UploadTopLevelFields = {
+  enteEmisor: string
+  fechaPublicacion: string
+}
+
+const ENTE_EMISOR_METADATA_KEYS = [
+  'enteEmisor',
+  'dependenciaAdministrativa',
+  'organizacionInternacional',
+  'organismoEmisor',
+  'institucionResponsable',
+  'nombreMedio',
+  'autor',
+  'ponente',
+  'sala',
+  'funcionarioFirmante',
+  'ambitoGeografico',
+  'estado',
+  'municipio',
+  'remitente',
+]
+
+const FECHA_PUBLICACION_METADATA_KEYS = [
+  'fechaPublicacion',
+  'fechaPromulgacion',
+  'fechaSentencia',
+  'fechaPresentacion',
+  'fechaAdopcion',
+  'ultimaActualizacion',
+]
+
+function readMetadataString(metadatos: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = metadatos[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value)
+    }
+  }
+  return ''
+}
+
+function readFechaPublicacionFromMetadatos(metadatos: Record<string, unknown>): string {
+  const direct = readMetadataString(metadatos, FECHA_PUBLICACION_METADATA_KEYS)
+  if (direct) return direct
+
+  const anio = metadatos.anioPublicacion
+  if (typeof anio === 'number' && anio >= 1000 && anio <= 9999) {
+    return `${anio}-01-01`
+  }
+  if (typeof anio === 'string' && /^\d{4}$/.test(anio.trim())) {
+    return `${anio.trim()}-01-01`
+  }
+
+  return ''
+}
+
+/** Campos de primer nivel exigidos por POST /documentos/upload y /documentos/borrador. */
+export function extractUploadTopLevelFields(
+  metadatos?: Record<string, unknown>,
+): UploadTopLevelFields {
+  const record = metadatos ?? {}
+  return {
+    enteEmisor: readMetadataString(record, ENTE_EMISOR_METADATA_KEYS),
+    fechaPublicacion: readFechaPublicacionFromMetadatos(record),
+  }
+}
+
 export type DocumentClassificationFields = {
   temaPrincipalId?: string
   temaPrincipalNombre?: string
@@ -54,14 +154,6 @@ export function buildDocumentMultipartPayload({
   metadatos,
 }: BuildDocumentMultipartOptions): FormData {
   const formData = new FormData()
-
-  if (file) {
-    formData.set('file', file, file.name)
-  }
-
-  if (gacetaFile) {
-    formData.set('gacetaFile', gacetaFile, gacetaFile.name)
-  }
 
   formData.set('titulo', (outbound.get('titulo') as string) || '')
   formData.set('tituloIntegro', (outbound.get('tituloIntegro') as string) || '')
@@ -119,13 +211,34 @@ export function buildDocumentMultipartPayload({
   const leyViejaId = (outbound.get('leyViejaId') as string) || ''
   if (leyViejaId) formData.set('leyViejaId', leyViejaId)
 
-  const categoriaIds = categorias.filter((cat) => cat).map(String)
-  if (categoriaIds.length > 0) {
-    formData.set('categoriaIds', JSON.stringify(categoriaIds))
+  const categoriaIds = categorias
+    .filter((cat) => cat)
+    .map(String)
+    .map((id) => id.trim())
+    .filter(Boolean)
+  for (const categoriaId of categoriaIds) {
+    formData.append('categoriaIds', categoriaId)
+  }
+
+  const topLevel = extractUploadTopLevelFields(metadatos)
+  if (topLevel.enteEmisor) {
+    formData.set('enteEmisor', topLevel.enteEmisor)
+  }
+  if (topLevel.fechaPublicacion) {
+    formData.set('fechaPublicacion', topLevel.fechaPublicacion)
   }
 
   if (metadatos && Object.keys(metadatos).length > 0) {
     formData.set('metadatos', JSON.stringify(metadatos))
+  }
+
+  // Multer/Busboy: campos de texto primero, archivos al final.
+  if (file) {
+    formData.append('file', file, file.name)
+  }
+
+  if (gacetaFile) {
+    formData.append('gacetaFile', gacetaFile, gacetaFile.name)
   }
 
   return formData

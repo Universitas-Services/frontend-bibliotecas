@@ -34,7 +34,7 @@ describe('getDocumentsAction', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'No autorizado. Inicie sesión nuevamente.',
+      error: 'No tiene autorización para realizar esta acción.',
       status: 401,
       code: 'NO_TOKEN',
     })
@@ -131,7 +131,7 @@ describe('getDocumentsAction', () => {
 
     expect(result).toEqual({
       success: false,
-      error: 'JWT expired',
+      error: 'Su sesión expiró. Inicie sesión nuevamente.',
       status: 401,
       code: 'TOKEN_EXPIRED',
     })

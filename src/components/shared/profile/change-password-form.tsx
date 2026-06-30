@@ -3,7 +3,8 @@
 import { useActionState, useEffect, useState } from 'react'
 import { Eye, EyeOff, KeyRound, Lock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
 
 import { changePasswordAction, type ChangePasswordState } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
@@ -28,17 +29,17 @@ export function ChangePasswordForm({ forced = false, homePath }: ChangePasswordF
 
   useEffect(() => {
     if (state?.error) {
-      toast.error(state.error)
+      toastError('No pudimos actualizar la contraseña', toUserFacingMessage(state.error))
     }
 
     if (state?.sessionExpired) {
-      toast.error(state.error || 'Tu sesión expiró. Por favor vuelve a iniciar sesión.')
+      toastError(USER_MSG.common.sessionExpired)
       router.replace('/login?logout=1')
       return
     }
 
     if (state?.success) {
-      toast.success(state.message || 'Contraseña actualizada.')
+      toastSuccess(state.message || USER_MSG.success.passwordUpdated)
       router.refresh()
       if (forced) {
         router.push(homePath)

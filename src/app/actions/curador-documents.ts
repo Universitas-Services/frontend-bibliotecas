@@ -4,11 +4,11 @@ import {
   apiGet,
   apiPatch,
   apiPostFormData,
-  mergeDocumentsById,
   normalizeDocumentsList,
   type ApiErrorCode,
 } from '@/lib/api-client'
-import { mapBackendStatus, type DocumentFilterId } from '@/lib/document-status'
+import { buildCuradorListPath } from '@/lib/curador-list-query'
+import type { DocumentFilterId } from '@/lib/document-status'
 
 export type CuradorDocumentsFilters = {
   estado?: DocumentFilterId
@@ -55,13 +55,17 @@ function normalizePaginatedResponse(
         : typeof record.size === 'number'
           ? record.size
           : fallbackLimit
+    const totalPages =
+      typeof record.totalPages === 'number'
+        ? record.totalPages
+        : Math.max(1, Math.ceil(total / Math.max(limit, 1)))
 
     return {
       documents,
       total,
       page,
       limit,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
+      totalPages,
     }
   }
 
@@ -78,134 +82,13 @@ export type GetCuradorDocumentsResult =
   | { success: true; data: PaginatedDocuments; status: number }
   | { success: false; error: string; details?: string; status?: number; code?: ApiErrorCode }
 
-async function fetchCuradorDocumentsRaw(): Promise<
-  | { success: true; data: unknown; status: number }
-  | { success: false; error: string; details?: string; status?: number; code?: ApiErrorCode }
-> {
-  const [curadorResult, generalResult] = await Promise.all([
-    apiGet('/documentos/curador/list'),
-    apiGet('/documentos'),
-  ])
-
-  const curadorDocs = curadorResult.success ? normalizeDocumentsList(curadorResult.data) : []
-  const generalDocs = generalResult.success ? normalizeDocumentsList(generalResult.data) : []
-  const mergedDocs = mergeDocumentsById(curadorDocs, generalDocs)
-
-  if (process.env.NODE_ENV === 'development') {
-    console.info('[curador docs]', {
-      curadorList: curadorDocs.length,
-      documentos: generalDocs.length,
-      merged: mergedDocs.length,
-    })
-  }
-
-  if (mergedDocs.length > 0) {
-    const status = curadorResult.success
-      ? curadorResult.status
-      : generalResult.success
-        ? generalResult.status
-        : 200
-
-    return { success: true, data: mergedDocs, status }
-  }
-
-  if (curadorResult.success) {
-    return { success: true, data: curadorResult.data, status: curadorResult.status }
-  }
-
-  if (generalResult.success) {
-    return { success: true, data: generalResult.data, status: generalResult.status }
-  }
-
-  return {
-    success: false,
-    error: curadorResult.error || generalResult.error || 'Error al cargar documentos',
-    details: curadorResult.details || generalResult.details,
-    status: curadorResult.status || generalResult.status,
-    code: curadorResult.code || generalResult.code,
-  }
-}
-
-function filterByEstadoTab(
-  documents: Record<string, unknown>[],
-  estado?: DocumentFilterId,
-): Record<string, unknown>[] {
-  if (!estado || estado === 'todos') return documents
-
-  return documents.filter((doc) => {
-    const backendEstado = typeof doc.estado === 'string' ? doc.estado : ''
-    const status = mapBackendStatus(backendEstado)
-
-    switch (estado) {
-      case 'publicados':
-        return status === 'publicado'
-      case 'en-revision':
-        return status === 'en-revision'
-      case 'borradores':
-        return status === 'borrador'
-      case 'rechazados':
-        return status === 'rechazado'
-      default:
-        return true
-    }
-  })
-}
-
-function filterByBusqueda(
-  documents: Record<string, unknown>[],
-  busqueda?: string,
-): Record<string, unknown>[] {
-  const term = busqueda?.trim().toLowerCase()
-  if (!term) return documents
-
-  return documents.filter((doc) => {
-    const titulo = String(doc.titulo || doc.tituloIntegro || '').toLowerCase()
-    const nombreBreve = String(doc.nombreBreve || '').toLowerCase()
-    return titulo.includes(term) || nombreBreve.includes(term)
-  })
-}
-
-function getDocumentDate(doc: Record<string, unknown>): Date | null {
-  const raw =
-    (typeof doc.ultimaActualizacion === 'string' && doc.ultimaActualizacion) ||
-    (typeof doc.updatedAt === 'string' && doc.updatedAt) ||
-    (typeof doc.createdAt === 'string' && doc.createdAt) ||
-    null
-
-  if (!raw) return null
-  const date = new Date(raw)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-function filterByTiempo(
-  documents: Record<string, unknown>[],
-  tiempo?: string,
-): Record<string, unknown>[] {
-  const days = tiempo === '7d' ? 7 : tiempo === '90d' ? 90 : 30
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - days)
-
-  return documents.filter((doc) => {
-    const date = getDocumentDate(doc)
-    return date ? date >= cutoff : true
-  })
-}
-
-function sortDocumentsByDateDesc(documents: Record<string, unknown>[]): Record<string, unknown>[] {
-  return [...documents].sort((left, right) => {
-    const leftTime = getDocumentDate(left)?.getTime() ?? 0
-    const rightTime = getDocumentDate(right)?.getTime() ?? 0
-    return rightTime - leftTime
-  })
-}
-
 export async function getCuradorDocumentsAction(
   filters: CuradorDocumentsFilters = {},
 ): Promise<GetCuradorDocumentsResult> {
   const page = filters.page ?? 1
   const limit = filters.limit ?? 10
-
-  const result = await fetchCuradorDocumentsRaw()
+  const path = buildCuradorListPath({ ...filters, page, limit })
+  const result = await apiGet(path)
 
   if (!result.success) {
     return {
@@ -217,26 +100,9 @@ export async function getCuradorDocumentsAction(
     }
   }
 
-  const allData = normalizePaginatedResponse(result.data, page, limit)
-  let documents = allData.documents
-
-  documents = filterByEstadoTab(documents, filters.estado)
-  documents = filterByBusqueda(documents, filters.busqueda)
-  documents = filterByTiempo(documents, filters.tiempo)
-  documents = sortDocumentsByDateDesc(documents)
-
-  const start = (page - 1) * limit
-  const paginatedDocuments = documents.slice(start, start + limit)
-
   return {
     success: true,
-    data: {
-      documents: paginatedDocuments,
-      total: documents.length,
-      page,
-      limit,
-      totalPages: Math.max(1, Math.ceil(documents.length / limit)),
-    },
+    data: normalizePaginatedResponse(result.data, page, limit),
     status: result.status,
   }
 }

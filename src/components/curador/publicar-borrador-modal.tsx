@@ -4,11 +4,13 @@ import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { publicarBorradorAction } from '@/app/actions/curador-documents'
 import { getDocumentByIdAction } from '@/app/actions/documents'
 import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
+import { readCategoriaIdsFromDocument } from '@/lib/document-categorias'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -25,21 +27,6 @@ type PublicarBorradorModalProps = {
   documentTitle: string
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-function readCategoriaIds(documento: Record<string, unknown>): string[] {
-  const categorias = documento.categorias
-  if (!Array.isArray(categorias)) return []
-
-  return categorias
-    .map((item) => {
-      if (typeof item === 'object' && item !== null) {
-        const record = item as Record<string, unknown>
-        return String(record.id ?? record._id ?? '').trim()
-      }
-      return ''
-    })
-    .filter(Boolean)
 }
 
 export function PublicarBorradorModal({
@@ -60,30 +47,31 @@ export function PublicarBorradorModal({
       ])
 
       if (!docRes.success) {
-        toast.error('No se pudo cargar el documento', {
-          description: docRes.error,
-        })
+        toastError(USER_MSG.error.loadDocument, docRes.error)
         return
       }
 
-      const documento = (docRes.data ?? {}) as Record<string, unknown>
-      const metadata =
-        metaRes.success && metaRes.data ? (metaRes.data as Record<string, unknown>) : null
+      const documento = {
+        ...(docRes.data ?? {}),
+        ...(metaRes.success ? (metaRes.data ?? {}) : {}),
+      } as Record<string, unknown>
       const subcarpetaNormaId = String(documento.subcarpetaNormaId || '').trim()
       const carpetaInternaId = String(documento.carpetaInternaId || '').trim() || undefined
-      const categoriaIds = readCategoriaIds(documento)
+      const categoriaIds = readCategoriaIdsFromDocument(documento)
 
       if (!subcarpetaNormaId) {
-        toast.error('Complete la clasificación antes de publicar.', {
-          description: 'Edite el borrador y seleccione la clasificación completa del documento.',
-        })
+        toastError(
+          USER_MSG.validation.classification,
+          'Edite el borrador y complete la clasificación del documento.',
+        )
         return
       }
 
       if (categoriaIds.length === 0) {
-        toast.error('Asigne al menos una categoría antes de publicar.', {
-          description: 'Edite el borrador y seleccione categorías en la taxonomía.',
-        })
+        toastError(
+          USER_MSG.validation.categorias,
+          'Edite el borrador y asigne al menos una categoría.',
+        )
         return
       }
 
@@ -94,13 +82,14 @@ export function PublicarBorradorModal({
       })
 
       if (!result.success) {
-        toast.error('Error al publicar el borrador', {
-          description: [result.error, result.details].filter(Boolean).join('\n'),
-        })
+        toastError(
+          USER_MSG.error.publishDocument,
+          [result.error, result.details].filter(Boolean).join('\n'),
+        )
         return
       }
 
-      toast.success('Borrador enviado a revisión correctamente.')
+      toastSuccess(USER_MSG.success.draftPublished)
       setComentarios('')
       onOpenChange(false)
       router.refresh()

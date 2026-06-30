@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 import { aprobarDocumentoAction } from '@/app/actions/workflows'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,13 +33,14 @@ export function AprobarModal({ documentId, documentTitle, open, onOpenChange }: 
     setIsPending(false)
 
     if (!result.success) {
-      toast.error('Error al aprobar el documento', {
-        description: [result.error, result.details].filter(Boolean).join('\n'),
-      })
+      toastError(
+        USER_MSG.error.approveDocument,
+        [result.error, result.details].filter(Boolean).join('\n'),
+      )
       return
     }
 
-    toast.success('Documento publicado exitosamente.')
+    toastSuccess(USER_MSG.success.documentPublishedRevisor)
     onOpenChange(false)
     router.refresh()
   }

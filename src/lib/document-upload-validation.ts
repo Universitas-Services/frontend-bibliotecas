@@ -1,4 +1,5 @@
 import { validateMetadatosForm } from '@/lib/metadata-schemas'
+import { extractUploadTopLevelFields } from '@/lib/document-form-data'
 
 export type UploadValidationIssue = {
   field: string
@@ -67,6 +68,24 @@ export function validateDocumentUploadForm(
 
   if (options.schemaKey !== undefined) {
     issues.push(...validateMetadatosForm(options.schemaKey ?? null, options.metadatosValues ?? {}))
+
+    const metadatosPayload = options.metadatosValues ?? {}
+    const topLevel = extractUploadTopLevelFields(metadatosPayload as Record<string, unknown>)
+
+    if (!topLevel.enteEmisor) {
+      issues.push({
+        field: 'enteEmisor',
+        message:
+          'Indique el ente emisor (por ejemplo: dependencia administrativa, autor u organismo emisor).',
+      })
+    }
+
+    if (!topLevel.fechaPublicacion) {
+      issues.push({
+        field: 'fechaPublicacion',
+        message: 'Indique la fecha de publicación del documento.',
+      })
+    }
   }
 
   return issues

@@ -92,6 +92,7 @@ export function UploadZone({
       <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#CBD5E1] bg-white p-6 text-center transition-colors hover:bg-gray-50">
         <input
           type="file"
+          name="gacetaFile"
           className="hidden"
           accept=".pdf"
           disabled={disabled}

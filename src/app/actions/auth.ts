@@ -7,6 +7,7 @@ import { getApiBaseUrl } from '@/lib/api'
 import { getHomePathForRole, getRoleFromToken } from '@/lib/auth'
 import { MUST_CHANGE_PASSWORD_COOKIE } from '@/lib/auth-cookies'
 import { validateNewPassword, validatePasswordConfirmation } from '@/lib/password-validation'
+import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
 import { isValidRedirectForRole } from '@/lib/route-guards'
 
 const TOKEN_MAX_AGE = 60 * 60 * 24 * 7
@@ -74,7 +75,7 @@ export async function loginAction(prevState: unknown, formData: FormData) {
   const redirectTo = formData.get('redirect') as string | null
 
   if (!email || !password) {
-    return { error: 'Por favor, ingrese correo y contraseña.' }
+    return { error: USER_MSG.validation.loginCredentials }
   }
 
   try {
@@ -89,14 +90,19 @@ export async function loginAction(prevState: unknown, formData: FormData) {
     const data = await res.json()
 
     if (!res.ok) {
-      return { error: data.message || 'Credenciales inválidas. Intente nuevamente.' }
+      return {
+        error: toUserFacingMessage(
+          typeof data.message === 'string' ? data.message : undefined,
+          USER_MSG.error.login,
+        ),
+      }
     }
 
     const token = data.access_token
     const mustChangePassword = data.mustChangePassword === true
 
     if (!token) {
-      return { error: 'No se recibió un token de acceso.' }
+      return { error: 'No recibimos confirmación de acceso. Intente iniciar sesión nuevamente.' }
     }
 
     const role = getRoleFromToken(token)
@@ -107,7 +113,7 @@ export async function loginAction(prevState: unknown, formData: FormData) {
 
     if (!role) {
       console.warn('No se encontró el rol en el token')
-      return { error: 'No se pudo determinar el rol del usuario.' }
+      return { error: 'No pudimos identificar su rol de usuario. Contacte al administrador.' }
     }
 
     if (mustChangePassword) {
@@ -220,7 +226,7 @@ export async function changePasswordAction(
 
     const role = getRoleFromToken(newToken)
     if (!role) {
-      return { error: 'No se pudo determinar el rol del usuario.' }
+      return { error: 'No pudimos identificar su rol de usuario. Contacte al administrador.' }
     }
 
     setAccessTokenCookie(cookieStore, newToken)

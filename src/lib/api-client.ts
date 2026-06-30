@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 
 import { getApiBaseUrl } from '@/lib/api'
 import { isTokenExpired } from '@/lib/auth'
+import { toUserFacingMessage, translateBackendError, USER_MSG } from '@/lib/user-messages'
 
 export type ApiErrorCode = 'NO_TOKEN' | 'TOKEN_EXPIRED' | 'HTTP_ERROR' | 'NETWORK_ERROR'
 
@@ -88,15 +89,19 @@ export function getApiErrorDetails(data: unknown): string | undefined {
   const messages = collectValidationMessages(record)
 
   if (messages.length > 1) {
-    return messages.map((line) => `• ${translateBackendError(line)}`).join('\n')
-  }
-
-  if (typeof record.statusCode === 'number') {
-    return `Código HTTP: ${record.statusCode}`
+    return messages
+      .map((line) => `• ${toUserFacingMessage(translateBackendError(line))}`)
+      .join('\n')
   }
 
   return undefined
 }
+
+function toApiUserError(data: unknown, fallback: string): string {
+  return toUserFacingMessage(translateBackendError(getApiErrorMessage(data, fallback)), fallback)
+}
+
+export { translateBackendError }
 
 async function parseResponseBody(res: Response): Promise<unknown> {
   if (typeof res.text === 'function') {
@@ -243,14 +248,14 @@ export async function getAuthFailure(): Promise<{
 
   if (token && isTokenExpired(token)) {
     return {
-      error: 'Su sesión ha expirado. Inicie sesión nuevamente.',
+      error: USER_MSG.common.sessionExpired,
       status: 401,
       code: 'TOKEN_EXPIRED',
     }
   }
 
   return {
-    error: 'No autorizado. Inicie sesión nuevamente.',
+    error: USER_MSG.common.notAuthorized,
     status: 401,
     code: 'NO_TOKEN',
   }
@@ -260,27 +265,218 @@ const API_TIMEOUT_MS = 120_000
 
 function getFetchErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
-    return error.message
+    return toUserFacingMessage(error.message, USER_MSG.common.connection)
   }
-  return 'No se pudo contactar al servidor.'
+  return USER_MSG.common.connection
 }
 
-/** Reconstruye multipart para Node fetch (evita pérdida de nombre/tipo del archivo). */
-export function buildOutboundFormData(source: FormData): FormData {
+function defaultFileName(key: string): string {
+  if (key === 'gacetaFile') return 'gaceta.pdf'
+  if (key === 'file') return 'documento.pdf'
+  return 'adjunto.bin'
+}
+
+function isNonEmptyBlob(value: FormDataEntryValue | null): value is File {
+  return value instanceof Blob && value.size > 0
+}
+
+const UPLOAD_FILE_FIELD_ORDER = ['file', 'gacetaFile'] as const
+
+type PendingUploadFile = {
+  key: string
+  buffer: ArrayBuffer
+  name: string
+  type: string
+}
+
+/**
+ * Reconstruye multipart para Node fetch.
+ * Multer/Busboy recomienda campos de texto primero y archivos al final.
+ */
+export async function buildOutboundFormData(source: FormData): Promise<FormData> {
   const outbound = new FormData()
-  for (const [key, value] of source.entries()) {
-    if (typeof value === 'object' && value !== null && 'size' in value) {
-      const fileName =
-        'name' in value && typeof value.name === 'string' && value.name
-          ? value.name
-          : 'documento.pdf'
-      outbound.append(key, value, fileName)
-    } else if (value != null && value !== '') {
-      outbound.append(key, String(value))
+  const textEntries: Array<{ key: string; value: string }> = []
+  const fileParts = new Map<string, PendingUploadFile>()
+
+  for (const key of source.keys()) {
+    for (const value of source.getAll(key)) {
+      if (isNonEmptyBlob(value)) {
+        fileParts.set(key, {
+          key,
+          buffer: await value.arrayBuffer(),
+          name: value instanceof File && value.name ? value.name : defaultFileName(key),
+          type: value.type || 'application/octet-stream',
+        })
+        continue
+      }
+
+      if (value != null && String(value) !== '') {
+        textEntries.push({ key, value: String(value) })
+      }
     }
   }
 
+  for (const entry of textEntries) {
+    outbound.append(entry.key, entry.value)
+  }
+
+  for (const fieldName of UPLOAD_FILE_FIELD_ORDER) {
+    const part = fileParts.get(fieldName)
+    if (!part) continue
+    outbound.append(part.key, new File([part.buffer], part.name, { type: part.type }))
+    fileParts.delete(fieldName)
+  }
+
+  for (const part of fileParts.values()) {
+    outbound.append(part.key, new File([part.buffer], part.name, { type: part.type }))
+  }
+
   return outbound
+}
+
+function multipartFetchHeaders(token: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/json',
+  }
+}
+
+type MultipartProxyMethod = 'POST' | 'PUT' | 'PATCH'
+
+async function logInboundMultipart(
+  method: MultipartProxyMethod,
+  path: string,
+  contentType: string,
+  bodyBuffer: Buffer,
+): Promise<void> {
+  if (process.env.NODE_ENV !== 'development') return
+
+  try {
+    const parsed = await new Request('http://upload.local', {
+      method: 'POST',
+      headers: { 'Content-Type': contentType },
+      body: new Uint8Array(bodyBuffer),
+    }).formData()
+    const file = parsed.get('file')
+    const fileInfo = isNonEmptyBlob(file)
+      ? `${file instanceof File ? file.name : 'blob'} (${file.size} bytes)`
+      : String(file ?? 'ausente')
+    console.log(`[API ${method} proxy] ${path} archivo inbound: ${fileInfo}`)
+    console.log(`[API ${method} proxy] campos: ${[...parsed.keys()].join(', ')}`)
+  } catch (error) {
+    console.warn(`[API ${method} proxy] ${path} no pudo inspeccionar multipart`, error)
+  }
+
+  console.log(`[API ${method} proxy] ${path} reenviando ${bodyBuffer.length} bytes al backend`)
+}
+
+/**
+ * Reenvía al backend el multipart exacto del navegador (sin reconstruir).
+ * Evita que multer pierda el campo `file` al re-serializar en Node.
+ */
+export async function proxyMultipartToBackend(
+  request: Request,
+  path: string,
+  method: MultipartProxyMethod = 'POST',
+): Promise<ApiResult<unknown>> {
+  const token = await getBearerToken()
+
+  if (!token) {
+    const failure = await getAuthFailure()
+    return { success: false, ...failure }
+  }
+
+  const contentType = request.headers.get('content-type') ?? ''
+  if (!contentType.includes('multipart/form-data')) {
+    return {
+      success: false,
+      error: 'La solicitud debe incluir archivos en formato multipart.',
+      status: 400,
+      code: 'HTTP_ERROR',
+    }
+  }
+
+  let bodyBuffer: Buffer
+  try {
+    bodyBuffer = Buffer.from(await request.arrayBuffer())
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API ${method} proxy] ${path} no pudo leer el body`, error)
+    }
+    return {
+      success: false,
+      error: 'No se pudo leer el formulario enviado.',
+      status: 400,
+      code: 'HTTP_ERROR',
+    }
+  }
+
+  if (bodyBuffer.length === 0) {
+    return {
+      success: false,
+      error: 'No se recibió el cuerpo de la solicitud.',
+      status: 400,
+      code: 'HTTP_ERROR',
+    }
+  }
+
+  await logInboundMultipart(method, path, contentType, bodyBuffer)
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'Content-Type': contentType,
+        'Content-Length': String(bodyBuffer.length),
+      },
+      body: new Uint8Array(bodyBuffer),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+
+    const data = await parseResponseBody(res)
+
+    if (!res.ok) {
+      const fallback =
+        res.status === 401
+          ? 'Sesión no válida o expirada. Inicie sesión nuevamente.'
+          : res.status === 400
+            ? 'La solicitud no cumple los requisitos del servidor.'
+            : 'Error del backend al procesar la solicitud.'
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[API ${method} proxy] ${path} → ${res.status}`, data)
+      }
+
+      return {
+        success: false,
+        error: toApiUserError(data, fallback),
+        details: getApiErrorDetails(data),
+        status: res.status,
+        code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
+        raw: data,
+      }
+    }
+
+    return { success: true, data, status: res.status }
+  } catch (error) {
+    const detail = getFetchErrorMessage(error)
+    const isTimeout = error instanceof Error && error.name === 'TimeoutError'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API ${method} proxy] ${path} network error`, error)
+    }
+
+    return {
+      success: false,
+      error: isTimeout
+        ? 'El servidor tardó demasiado en responder. Intente de nuevo en unos segundos.'
+        : `Error de conexión con el servidor. ${detail}`,
+      code: 'NETWORK_ERROR',
+    }
+  }
 }
 
 export async function apiPostFormData(path: string, source: FormData): Promise<ApiResult<unknown>> {
@@ -292,7 +488,7 @@ export async function apiPostFormData(path: string, source: FormData): Promise<A
   }
 
   const file = source.get('file')
-  if (!file || typeof file !== 'object' || !('size' in file) || file.size === 0) {
+  if (!isNonEmptyBlob(file)) {
     return {
       success: false,
       error: 'Debe seleccionar un archivo válido para subir.',
@@ -301,15 +497,12 @@ export async function apiPostFormData(path: string, source: FormData): Promise<A
     }
   }
 
-  const body = buildOutboundFormData(source)
+  const body = await buildOutboundFormData(source)
 
   try {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
+      headers: multipartFetchHeaders(token),
       body,
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
@@ -331,7 +524,7 @@ export async function apiPostFormData(path: string, source: FormData): Promise<A
 
       return {
         success: false,
-        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        error: toApiUserError(data, fallback),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -391,7 +584,7 @@ export async function apiGet(path: string): Promise<ApiResult<unknown>> {
 
       return {
         success: false,
-        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        error: toApiUserError(data, fallback),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -412,81 +605,6 @@ export async function apiGet(path: string): Promise<ApiResult<unknown>> {
       code: 'NETWORK_ERROR',
     }
   }
-}
-
-/**
- * Traduce los mensajes de error más comunes del backend (inglés) al español.
- * Se aplica antes de mostrar cualquier toast o notificación al usuario.
- */
-const BACKEND_ERROR_TRANSLATIONS: Record<string, string> = {
-  Unauthorized: 'No autorizado. Inicie sesión nuevamente.',
-  Forbidden: 'No tiene permisos para realizar esta acción.',
-  'Not Found': 'El recurso solicitado no fue encontrado.',
-  'Bad Request': 'La solicitud contiene datos inválidos.',
-  'Internal Server Error': 'Error interno del servidor. Intente más tarde.',
-  'must be a string': 'debe ser texto',
-  'must be a number': 'debe ser un número',
-  'should not be empty': 'no puede estar vacío',
-  'must be an email': 'debe ser un correo electrónico válido',
-  'is not valid': 'no es válido',
-  'already exists': 'ya existe en el sistema',
-  'too short': 'es demasiado corto',
-  'too long': 'es demasiado largo',
-  Conflict: 'Conflicto: el recurso ya existe o está en uso.',
-  'Payload Too Large': 'El archivo es demasiado grande.',
-  'Unsupported Media Type': 'El tipo de archivo no es compatible.',
-}
-
-const API_FIELD_LABELS: Record<string, string> = {
-  temaPrincipal: 'tema principal',
-  categoriaIds: 'categorías',
-  tipoNorma: 'tipo de norma',
-  enteEmisor: 'ente emisor',
-  fechaPublicacion: 'fecha de publicación',
-  titulo: 'título',
-  tituloIntegro: 'título íntegro',
-  nombreBreve: 'nombre breve',
-  file: 'archivo',
-  comentarios: 'comentarios',
-}
-
-function apiFieldLabel(field: string): string {
-  return API_FIELD_LABELS[field] ?? field
-}
-
-export function translateBackendError(message: string): string {
-  if (BACKEND_ERROR_TRANSLATIONS[message]) {
-    return BACKEND_ERROR_TRANSLATIONS[message]
-  }
-
-  let translated = message
-
-  translated = translated.replace(
-    /property\s+(\w+)\s+should not exist/gi,
-    (_, field: string) => `El campo «${apiFieldLabel(field)}» no está permitido.`,
-  )
-
-  translated = translated.replace(
-    /(\w+)\s+must be a UUID/gi,
-    (_, field: string) => `«${apiFieldLabel(field)}» debe ser un identificador válido.`,
-  )
-
-  translated = translated.replace(
-    /(\w+)\s+must be an array/gi,
-    (_, field: string) => `«${apiFieldLabel(field)}» debe ser una lista.`,
-  )
-
-  for (const [english, spanish] of Object.entries(BACKEND_ERROR_TRANSLATIONS)) {
-    translated = translated.replace(
-      new RegExp(`(\\w+)\\s+${english}`, 'gi'),
-      (_, field: string) => `«${apiFieldLabel(field)}» ${spanish}.`,
-    )
-    if (translated.toLowerCase().includes(english.toLowerCase())) {
-      translated = translated.replace(new RegExp(english, 'gi'), spanish)
-    }
-  }
-
-  return translated
 }
 
 export async function apiDelete(path: string): Promise<ApiResult<unknown>> {
@@ -529,7 +647,7 @@ export async function apiDelete(path: string): Promise<ApiResult<unknown>> {
 
       return {
         success: false,
-        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        error: toApiUserError(data, fallback),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -593,7 +711,7 @@ export async function apiPost(path: string, body: unknown): Promise<ApiResult<un
 
       return {
         success: false,
-        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        error: toApiUserError(data, fallback),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -628,15 +746,12 @@ export async function apiPutFormData(path: string, source: FormData): Promise<Ap
     return { success: false, ...failure }
   }
 
-  const body = buildOutboundFormData(source)
+  const body = await buildOutboundFormData(source)
 
   try {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
       method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
+      headers: multipartFetchHeaders(token),
       body,
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
@@ -658,7 +773,7 @@ export async function apiPutFormData(path: string, source: FormData): Promise<Ap
 
       return {
         success: false,
-        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        error: toApiUserError(data, fallback),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -696,15 +811,12 @@ export async function apiPatchFormData(
     return { success: false, ...failure }
   }
 
-  const body = buildOutboundFormData(source)
+  const body = await buildOutboundFormData(source)
 
   try {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
       method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
+      headers: multipartFetchHeaders(token),
       body,
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
@@ -726,7 +838,7 @@ export async function apiPatchFormData(
 
       return {
         success: false,
-        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        error: toApiUserError(data, fallback),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',
@@ -790,7 +902,7 @@ export async function apiPatch(path: string, body: unknown): Promise<ApiResult<u
 
       return {
         success: false,
-        error: translateBackendError(getApiErrorMessage(data, fallback)),
+        error: toApiUserError(data, fallback),
         details: getApiErrorDetails(data),
         status: res.status,
         code: res.status === 401 ? 'TOKEN_EXPIRED' : 'HTTP_ERROR',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FileText, Info } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
@@ -38,7 +38,11 @@ function renderField(
         <SelectTrigger className="h-11 w-full border-gray-300 bg-white">
           <SelectValue placeholder={`Seleccione ${field.label.toLowerCase()}...`} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent
+          position="popper"
+          sideOffset={4}
+          className="w-[var(--radix-select-trigger-width)]"
+        >
           {options.length === 0 ? (
             <SelectItem value="__empty" disabled>
               {field.dependsOn ? 'Seleccione primero el campo dependiente' : 'Sin opciones'}
@@ -88,12 +92,12 @@ function SchemaFields({
 }) {
   const [values, setValues] = useState<Record<string, string>>(initialValues ?? {})
 
+  useEffect(() => {
+    onChange?.(values)
+  }, [values, onChange])
+
   const handleFieldChange = (key: string, value: string) => {
-    setValues((prev) => {
-      const next = { ...prev, [key]: value }
-      onChange?.(next)
-      return next
-    })
+    setValues((prev) => ({ ...prev, [key]: value }))
   }
 
   return (
@@ -124,10 +128,12 @@ export function MetadataFormDynamic({
           <FileText className="h-6 w-6 text-gray-400" strokeWidth={1.5} />
         </div>
         <div>
-          <p className="text-sm font-medium text-gray-600">Seleccione la clasificación completa</p>
+          <p className="text-sm font-medium text-gray-600">
+            Complete la clasificación del documento
+          </p>
           <p className="mt-1 text-xs text-gray-400">
-            Los metadatos específicos se habilitarán al completar tema, tipo documental y
-            subcarpetas.
+            Los metadatos específicos aparecerán cuando seleccione tema, tipo documental y carpeta
+            final.
           </p>
         </div>
       </div>
@@ -142,7 +148,7 @@ export function MetadataFormDynamic({
           <Info className="h-6 w-6 text-[#D97706]" strokeWidth={1.5} />
         </div>
         <p className="text-sm font-medium text-[#A8610A]">
-          No hay esquema definido para esta clasificación.
+          Aún no hay un formulario de metadatos para esta combinación de clasificación.
         </p>
       </div>
     )

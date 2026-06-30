@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Save } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { patchDocumentEstadoLegalAction } from '@/app/actions/documents'
 import { Button } from '@/components/ui/button'
@@ -34,7 +35,7 @@ export function EstadoLegalEditor({ documentoId, currentEstadoLegal }: EstadoLeg
 
   const handleSave = () => {
     if (!selected) {
-      toast.error('Seleccione un estado legal válido.')
+      toastError(USER_MSG.validation.estadoLegal)
       return
     }
 
@@ -45,13 +46,14 @@ export function EstadoLegalEditor({ documentoId, currentEstadoLegal }: EstadoLeg
       )
 
       if (!result.success) {
-        toast.error('No se pudo actualizar el estado legal', {
-          description: [result.error, result.details].filter(Boolean).join('\n'),
-        })
+        toastError(
+          USER_MSG.error.updateEstadoLegal,
+          [result.error, result.details].filter(Boolean).join('\n'),
+        )
         return
       }
 
-      toast.success('Estado legal actualizado.')
+      toastSuccess(USER_MSG.success.estadoLegalUpdated)
       router.refresh()
     })
   }

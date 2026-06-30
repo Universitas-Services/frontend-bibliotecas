@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { extractDocumentCategorias } from '@/lib/document-categorias'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
 import { parseMetadatosObject } from '@/lib/metadata-schemas'
 
@@ -86,6 +87,7 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
   }
 
   const matrices = extractDocumentMatrices(document as Record<string, unknown>)
+  const categorias = extractDocumentCategorias(document as Record<string, unknown>)
   const metadatos = parseMetadatosObject(document.metadatos)
 
   return (
@@ -144,6 +146,26 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
                 {document.pais || 'No especificado'}
               </p>
             </div>
+          </div>
+
+          <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
+            <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+              Categorías asignadas
+            </h4>
+            {categorias.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {categorias.map((categoria) => (
+                  <Badge
+                    key={categoria.id}
+                    className="rounded-full bg-[#00315C] px-3 py-1 text-[11px] font-semibold text-white"
+                  >
+                    {categoria.nombre}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[14px] font-medium text-[#6B7280]">Sin categorías asignadas</p>
+            )}
           </div>
 
           {document.gacetaPdfUrl ? (

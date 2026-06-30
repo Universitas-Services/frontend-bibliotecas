@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Edit, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 import {
   Table,
   TableBody,
@@ -38,13 +39,11 @@ export function TemasTable({ initialTemas }: TemasTableProps) {
     startTransition(async () => {
       const result = await eliminarTemaAction(temaId)
       if (result.data) {
-        toast.success('Tema eliminado correctamente.')
+        toastSuccess(USER_MSG.success.temaDeleted)
         setTemas(temas.filter((t) => t.id !== temaId))
         router.refresh()
       } else {
-        toast.error('Error al eliminar el tema', {
-          description: result.error,
-        })
+        toastError(USER_MSG.error.deleteTema, result.error)
       }
     })
   }
@@ -77,15 +76,13 @@ export function TemasTable({ initialTemas }: TemasTableProps) {
       }
 
       if (errors.length > 0) {
-        toast.error('Error al guardar asignaciones', {
-          description: errors.join('\n'),
-        })
+        toastError(USER_MSG.error.saveAssignments, errors.join('\n'))
         return
       }
 
       setTemas(temas.map((t) => (t.id === temaId ? { ...t, revisoresAsignados: revisores } : t)))
       setIsSheetOpen(false)
-      toast.success('Personal asignado correctamente.')
+      toastSuccess(USER_MSG.success.staffAssigned)
       router.refresh()
     })
   }

@@ -12,6 +12,7 @@ import {
   normalizeDocumentsList,
   type ApiErrorCode,
 } from '@/lib/api-client'
+import { toUserFacingMessage, translateBackendError, USER_MSG } from '@/lib/user-messages'
 import type { BackendEstadoLegal } from '@/lib/document-status'
 
 export async function uploadDocumentAction(formData: FormData) {
@@ -90,20 +91,30 @@ export async function getPreviewUrlAction(documentId: string) {
     const data = await res.json().catch(() => null)
 
     if (!res.ok) {
+      const fallback =
+        res.status === 401 ? USER_MSG.common.sessionExpired : USER_MSG.preview.unavailable
       return {
         success: false,
-        error: getApiErrorMessage(
-          data,
-          res.status === 401
-            ? 'Sesión no válida o expirada.'
-            : 'Error al obtener la previsualización.',
+        error: toUserFacingMessage(
+          translateBackendError(getApiErrorMessage(data, fallback)),
+          fallback,
         ),
+      }
+    }
+
+    if (!data?.url || typeof data.url !== 'string') {
+      return {
+        success: false,
+        error: USER_MSG.preview.unavailable,
       }
     }
 
     return { success: true, url: data.url }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error de conexión.'
+    const message =
+      error instanceof Error
+        ? toUserFacingMessage(error.message, USER_MSG.common.connection)
+        : USER_MSG.common.connection
     return { success: false, error: message }
   }
 }
@@ -130,18 +141,23 @@ export async function getDocumentByIdAction(documentId: string) {
     const data = await res.json().catch(() => null)
 
     if (!res.ok) {
+      const fallback =
+        res.status === 401 ? USER_MSG.common.sessionExpired : USER_MSG.error.loadDocument
       return {
         success: false,
-        error: getApiErrorMessage(
-          data,
-          res.status === 401 ? 'Sesión no válida o expirada.' : 'Error al obtener el documento.',
+        error: toUserFacingMessage(
+          translateBackendError(getApiErrorMessage(data, fallback)),
+          fallback,
         ),
       }
     }
 
     return { success: true, data }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error de conexión.'
+    const message =
+      error instanceof Error
+        ? toUserFacingMessage(error.message, USER_MSG.common.connection)
+        : USER_MSG.common.connection
     return { success: false, error: message }
   }
 }
@@ -165,13 +181,19 @@ export async function deleteDocumentAction(documentId: string) {
       const data = await res.json().catch(() => null)
       return {
         success: false,
-        error: getApiErrorMessage(data, 'Error al eliminar el documento.'),
+        error: toUserFacingMessage(
+          translateBackendError(getApiErrorMessage(data, USER_MSG.error.deleteDocument)),
+          USER_MSG.error.deleteDocument,
+        ),
       }
     }
 
     return { success: true }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error de conexión.'
+    const message =
+      error instanceof Error
+        ? toUserFacingMessage(error.message, USER_MSG.common.connection)
+        : USER_MSG.common.connection
     return { success: false, error: message }
   }
 }

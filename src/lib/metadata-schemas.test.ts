@@ -46,9 +46,29 @@ describe('buildDocumentMultipartPayload', () => {
       JSON.stringify({ rango: 'Ley Orgánica', numeroGaceta: '123' }),
     )
     expect(payload.get('etiquetas')).toBe(JSON.stringify(['derecho', 'urbanismo']))
-    expect(payload.get('categoriaIds')).toBe(JSON.stringify(['cat-1', 'cat-2']))
+    expect(payload.getAll('categoriaIds')).toEqual(['cat-1', 'cat-2'])
     expect(payload.get('ocrHabilitado')).toBe('true')
     expect(payload.get('subcarpetaNormaId')).toBe('sub-1')
     expect(payload.get('carpetaInternaId')).toBe('carpeta-1')
+  })
+
+  it('envía enteEmisor, fechaPublicacion y categoriaIds como campos de primer nivel', () => {
+    const outbound = new FormData()
+    outbound.set('tituloIntegro', 'Consulta administrativa')
+
+    const payload = buildDocumentMultipartPayload({
+      outbound,
+      categorias: ['3fa85f64-5717-4562-b3fc-2c963f66afa6'],
+      classification: { tipoDocumentoId: 'sub-1', carpetaInternaId: 'carpeta-1' },
+      metadatos: {
+        dependenciaAdministrativa: 'Ministerio de Prueba',
+        fechaPublicacion: '2024-06-15',
+        numeroDocumento: 'DOC-001',
+      },
+    })
+
+    expect(payload.get('enteEmisor')).toBe('Ministerio de Prueba')
+    expect(payload.get('fechaPublicacion')).toBe('2024-06-15')
+    expect(payload.getAll('categoriaIds')).toEqual(['3fa85f64-5717-4562-b3fc-2c963f66afa6'])
   })
 })

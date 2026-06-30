@@ -308,6 +308,7 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
     label: 'Doctrina Administrativa',
     fields: [
       { key: 'numeroDocumento', label: 'N° del documento', type: 'text', required: true },
+      { key: 'fechaPublicacion', label: 'Fecha del documento', type: 'date', required: true },
       {
         key: 'codigoReferenciaInterna',
         label: 'Código o referencia interna',

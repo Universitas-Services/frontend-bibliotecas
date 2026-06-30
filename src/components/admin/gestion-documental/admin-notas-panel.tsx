@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import {
   createNotaInternaAction,
@@ -50,14 +51,14 @@ export function AdminNotasPanel({ documentoId, initialNotas }: AdminNotasPanelPr
   const handleCreate = () => {
     const texto = contenido.trim()
     if (!texto) {
-      toast.error('Escriba el contenido de la nota.')
+      toastError(USER_MSG.validation.noteContent)
       return
     }
 
     startTransition(async () => {
       const result = await createNotaInternaAction({ documentoId, contenido: texto })
       if (!result.success) {
-        toast.error('Error al crear la nota', { description: result.error })
+        toastError(USER_MSG.error.createNote, result.error)
         return
       }
 
@@ -71,7 +72,7 @@ export function AdminNotasPanel({ documentoId, initialNotas }: AdminNotasPanelPr
 
       setNotas((prev) => [nuevaNota, ...prev])
       setContenido('')
-      toast.success('Nota enviada al curador.')
+      toastSuccess(USER_MSG.success.noteSent)
       router.refresh()
     })
   }
@@ -83,12 +84,12 @@ export function AdminNotasPanel({ documentoId, initialNotas }: AdminNotasPanelPr
     startTransition(async () => {
       const result = await deleteNotaInternaAction(notaId)
       if (!result.success) {
-        toast.error('Error al eliminar la nota', { description: result.error })
+        toastError(USER_MSG.error.deleteNote, result.error)
         return
       }
 
       setNotas((prev) => prev.filter((n) => n.id !== notaId))
-      toast.success('Nota eliminada.')
+      toastSuccess(USER_MSG.success.noteDeleted)
       router.refresh()
     })
   }

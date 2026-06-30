@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, RotateCcw, XCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { aprobarDocumentoAction, rechazarDocumentoAction } from '@/app/actions/admin-documents'
 import { listMatrizAAction, listMatrizBAction } from '@/app/actions/matrices'
@@ -97,20 +98,21 @@ export function AdminApprovePanel({
       })
 
       if (!result.success) {
-        toast.error('No se pudo aprobar el documento', {
-          description: [result.error, result.details].filter(Boolean).join('\n'),
-        })
+        toastError(
+          USER_MSG.error.approveDocument,
+          [result.error, result.details].filter(Boolean).join('\n'),
+        )
         return
       }
 
-      toast.success('Documento aprobado y publicado correctamente.')
+      toastSuccess(USER_MSG.success.documentApproved)
       router.refresh()
     })
   }
 
   const handleReject = () => {
     if (!motivo.trim()) {
-      toast.error('Indique el motivo del rechazo.')
+      toastError(USER_MSG.validation.rejectionReason)
       return
     }
 
@@ -118,13 +120,14 @@ export function AdminApprovePanel({
       const result = await rechazarDocumentoAction(documentoId, { motivo })
 
       if (!result.success) {
-        toast.error('No se pudo rechazar el documento', {
-          description: [result.error, result.details].filter(Boolean).join('\n'),
-        })
+        toastError(
+          USER_MSG.error.rejectDocument,
+          [result.error, result.details].filter(Boolean).join('\n'),
+        )
         return
       }
 
-      toast.success('Documento devuelto al curador con la nota de corrección.')
+      toastSuccess(USER_MSG.success.documentRejected)
       router.push('/admin/gestion-documental')
     })
   }

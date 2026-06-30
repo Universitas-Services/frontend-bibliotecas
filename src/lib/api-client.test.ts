@@ -71,17 +71,22 @@ describe('api-client helpers', () => {
     ])
   })
 
-  it('rebuilds multipart with file name for outbound upload', () => {
+  it('rebuilds multipart with files after text fields', async () => {
     const source = new FormData()
-    const file = new File(['pdf'], 'test.pdf', { type: 'application/pdf' })
+    const file = new File(['pdf-content'], 'test.pdf', { type: 'application/pdf' })
     source.append('file', file)
     source.append('titulo', 'Ley ejemplo')
+    source.append('pais', 'Venezuela')
 
-    const outbound = buildOutboundFormData(source)
+    const outbound = await buildOutboundFormData(source)
     const outboundFile = outbound.get('file')
 
-    expect(outbound.get('titulo')).toBe('Ley ejemplo')
-    expect(outboundFile).toBeInstanceOf(File)
+    expect(outboundFile).toBeInstanceOf(Blob)
+    expect((outboundFile as Blob).size).toBeGreaterThan(0)
     expect((outboundFile as File).name).toBe('test.pdf')
+
+    const keys = [...outbound.keys()]
+    expect(keys[keys.length - 1]).toBe('file')
+    expect(keys).toContain('titulo')
   })
 })
