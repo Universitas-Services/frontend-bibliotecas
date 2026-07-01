@@ -13,9 +13,11 @@ import {
 } from '@/components/ui/select'
 import {
   METADATA_SCHEMAS,
+  TERRITORIAL_CASCADE_CLEAR,
   type MetadataFieldDefinition,
   type MetadataSchema,
 } from '@/lib/metadata-schemas'
+import { TerritorialSelectField } from '@/components/curador/nueva-carga/territorial-select-field'
 
 type MetadataFormDynamicProps = {
   schemaKey: string | null
@@ -27,7 +29,18 @@ function renderField(
   field: MetadataFieldDefinition,
   values: Record<string, string>,
   onFieldChange: (key: string, value: string) => void,
+  onTerritorialChange: (fieldKey: string, updates: Record<string, string>) => void,
 ) {
+  if (field.optionSource) {
+    return (
+      <TerritorialSelectField
+        field={field}
+        values={values}
+        onFieldChange={(updates) => onTerritorialChange(field.key, updates)}
+      />
+    )
+  }
+
   const value = values[field.key] ?? ''
   const options =
     field.getOptions && field.dependsOn ? field.getOptions(values) : (field.options ?? [])
@@ -100,6 +113,19 @@ function SchemaFields({
     setValues((prev) => ({ ...prev, [key]: value }))
   }
 
+  const handleTerritorialChange = (fieldKey: string, updates: Record<string, string>) => {
+    setValues((prev) => {
+      const next = { ...prev, ...updates }
+      const toClear = TERRITORIAL_CASCADE_CLEAR[fieldKey]
+      if (toClear) {
+        for (const clearKey of toClear) {
+          delete next[clearKey]
+        }
+      }
+      return next
+    })
+  }
+
   return (
     <div className="space-y-5">
       <p className="text-sm font-medium text-[#00315C]">{schema.label}</p>
@@ -109,7 +135,7 @@ function SchemaFields({
             {field.label}
             {field.required ? <span className="ml-1 text-red-500">*</span> : null}
           </label>
-          {renderField(field, values, handleFieldChange)}
+          {renderField(field, values, handleFieldChange, handleTerritorialChange)}
         </div>
       ))}
     </div>
