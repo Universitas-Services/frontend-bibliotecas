@@ -21,7 +21,6 @@ export function validateDocumentUploadForm(
   const subcarpetaNormaId = String(formData.get('subcarpetaNormaId') ?? '').trim()
   const carpetaInternaId = String(formData.get('carpetaInternaId') ?? '').trim()
   const pais = String(formData.get('pais') ?? '').trim()
-  const resumen = String(formData.get('resumen') ?? '').trim()
 
   if (!subcarpetaNormaId) {
     issues.push({
@@ -48,13 +47,6 @@ export function validateDocumentUploadForm(
     issues.push({
       field: 'pais',
       message: 'El país es obligatorio.',
-    })
-  }
-
-  if (!resumen) {
-    issues.push({
-      field: 'resumen',
-      message: 'El resumen descriptivo es obligatorio.',
     })
   }
 

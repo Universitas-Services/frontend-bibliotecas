@@ -45,10 +45,7 @@ export function SeoSection({ initialResumen = '', initialEtiquetas = [] }: SeoSe
     <div className="space-y-6">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-[#00315C]">
-            Resumen descriptivo
-            <span className="ml-1 text-red-500">*</span>
-          </label>
+          <label className="text-sm font-medium text-[#00315C]">Resumen descriptivo</label>
           <CharacterCounter current={resumen.length} max={SEO_LIMITS.resumen} />
         </div>
         <Textarea
