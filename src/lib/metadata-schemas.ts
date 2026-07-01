@@ -1,11 +1,12 @@
-import {
-  getMunicipiosForEstado,
-  SALAS_TSJ,
-  TRIBUNALES_JURISPRUDENCIA,
-  VENEZUELA_ESTADOS,
-} from '@/lib/catalogs/venezuela-territorial'
+import { SALAS_TSJ } from '@/lib/catalogs/venezuela-territorial'
 
 export type MetadataFieldType = 'text' | 'date' | 'number' | 'select' | 'textarea'
+
+export type TerritorialOptionSource =
+  | 'global-estado'
+  | 'global-municipio'
+  | 'global-parroquia'
+  | 'global-tribunal'
 
 export type MetadataFieldDefinition = {
   key: string
@@ -15,6 +16,9 @@ export type MetadataFieldDefinition = {
   placeholder?: string
   options?: { value: string; label: string }[]
   dependsOn?: string
+  dependsOnId?: string
+  companionIdKey?: string
+  optionSource?: TerritorialOptionSource
   getOptions?: (values: Record<string, string>) => { value: string; label: string }[]
 }
 
@@ -59,7 +63,15 @@ const LEGISLACION_MUNICIPAL_RANGOS = [
   'Acuerdo Municipal',
 ].map((r) => ({ value: r, label: r }))
 
-const estadoOptions = VENEZUELA_ESTADOS.map((e) => ({ value: e, label: e }))
+export const TERRITORIAL_ID_KEYS = ['estadoId', 'municipioId', 'parroquiaId', 'tribunalId'] as const
+
+/** Campos que se limpian al cambiar un select territorial padre. */
+export const TERRITORIAL_CASCADE_CLEAR: Record<string, string[]> = {
+  estado: ['municipio', 'municipioId', 'parroquia', 'parroquiaId', 'tribunal', 'tribunalId'],
+  municipio: ['parroquia', 'parroquiaId', 'tribunal', 'tribunalId'],
+  parroquia: [],
+  tribunal: [],
+}
 
 export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
   'legislacion-nacional': {
@@ -94,7 +106,14 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
     key: 'legislacion-estadal',
     label: 'Legislación Estadal',
     fields: [
-      { key: 'estado', label: 'Estado', type: 'select', required: true, options: estadoOptions },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        required: true,
+        optionSource: 'global-estado',
+        companionIdKey: 'estadoId',
+      },
       {
         key: 'rango',
         label: 'Rango normativo',
@@ -110,15 +129,33 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
     key: 'legislacion-municipal',
     label: 'Legislación Municipal',
     fields: [
-      { key: 'estado', label: 'Estado', type: 'select', required: true, options: estadoOptions },
+      {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        required: true,
+        optionSource: 'global-estado',
+        companionIdKey: 'estadoId',
+      },
       {
         key: 'municipio',
         label: 'Municipio',
         type: 'select',
         required: true,
         dependsOn: 'estado',
-        getOptions: (values) =>
-          getMunicipiosForEstado(values.estado ?? '').map((m) => ({ value: m, label: m })),
+        dependsOnId: 'estadoId',
+        optionSource: 'global-municipio',
+        companionIdKey: 'municipioId',
+      },
+      {
+        key: 'parroquia',
+        label: 'Parroquia',
+        type: 'select',
+        required: true,
+        dependsOn: 'municipio',
+        dependsOnId: 'municipioId',
+        optionSource: 'global-parroquia',
+        companionIdKey: 'parroquiaId',
       },
       {
         key: 'rango',
@@ -166,11 +203,30 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
     label: 'Jurisprudencia — Contencioso Administrativo',
     fields: [
       {
+        key: 'estado',
+        label: 'Estado',
+        type: 'select',
+        required: false,
+        optionSource: 'global-estado',
+        companionIdKey: 'estadoId',
+      },
+      {
+        key: 'municipio',
+        label: 'Municipio',
+        type: 'select',
+        required: false,
+        dependsOn: 'estado',
+        dependsOnId: 'estadoId',
+        optionSource: 'global-municipio',
+        companionIdKey: 'municipioId',
+      },
+      {
         key: 'tribunal',
         label: 'Tribunal',
         type: 'select',
         required: true,
-        options: TRIBUNALES_JURISPRUDENCIA.map((t) => ({ value: t, label: t })),
+        optionSource: 'global-tribunal',
+        companionIdKey: 'tribunalId',
       },
       { key: 'numeroSentencia', label: 'N° de sentencia', type: 'text', required: true },
       { key: 'numeroExpediente', label: 'N° de expediente', type: 'text', required: true },
@@ -186,16 +242,6 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
           { value: 'Con lugar', label: 'Con lugar' },
           { value: 'Sin lugar', label: 'Sin lugar' },
         ],
-      },
-      { key: 'estado', label: 'Estado', type: 'select', required: false, options: estadoOptions },
-      {
-        key: 'municipio',
-        label: 'Municipio',
-        type: 'select',
-        required: false,
-        dependsOn: 'estado',
-        getOptions: (values) =>
-          getMunicipiosForEstado(values.estado ?? '').map((m) => ({ value: m, label: m })),
       },
     ],
   },
@@ -434,6 +480,13 @@ export function buildMetadatosFromForm(
     } else {
       result[field.key] = raw
     }
+  }
+
+  for (const idKey of TERRITORIAL_ID_KEYS) {
+    const raw = formValues[idKey]?.trim() ?? ''
+    if (!raw) continue
+    const num = Number(raw)
+    if (!Number.isNaN(num)) result[idKey] = num
   }
 
   if (schemaKey === 'legislacion-nacional' && !result.ambitoGeografico) {

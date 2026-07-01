@@ -27,6 +27,12 @@ export default defineConfig({
       API_BASE_URL:
         process.env.API_BASE_URL ??
         'https://biblioteca-legal-backend-693924722323.us-central1.run.app',
+      GLOBAL_API_BASE_URL:
+        process.env.GLOBAL_API_BASE_URL ??
+        'https://api-global-universitas-693924722323.us-central1.run.app',
+      NEXT_PUBLIC_API_URL:
+        process.env.NEXT_PUBLIC_API_URL ??
+        'https://api-global-universitas-693924722323.us-central1.run.app',
       E2E_TEST_MODE: '1',
     },
   },

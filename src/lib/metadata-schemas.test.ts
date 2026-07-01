@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
-import { buildMetadatosFromForm, resolveMetadataSchemaKey } from '@/lib/metadata-schemas'
+import {
+  buildMetadatosFromForm,
+  METADATA_SCHEMAS,
+  resolveMetadataSchemaKey,
+} from '@/lib/metadata-schemas'
 
 describe('metadata-schemas', () => {
   it('resolves legislacion municipal from path', () => {
@@ -19,6 +23,35 @@ describe('metadata-schemas', () => {
 
     expect(result.rango).toBe('Ley Orgánica')
     expect(result.ambitoGeografico).toBe('Nacional')
+  })
+
+  it('incluye parroquia en legislacion municipal', () => {
+    const schema = METADATA_SCHEMAS['legislacion-municipal']
+    expect(schema.fields.some((field) => field.key === 'parroquia')).toBe(true)
+    expect(schema.fields.find((field) => field.key === 'parroquia')?.optionSource).toBe(
+      'global-parroquia',
+    )
+  })
+
+  it('persiste pares id+nombre en metadatos territoriales', () => {
+    const result = buildMetadatosFromForm('legislacion-municipal', {
+      estado: 'Miranda',
+      estadoId: '14',
+      municipio: 'Baruta',
+      municipioId: '102',
+      parroquia: 'Baruta',
+      parroquiaId: '501',
+      rango: 'Ordenanza',
+      numeroGacetaMunicipal: '123',
+      fechaPromulgacion: '2024-05-12',
+    })
+
+    expect(result.estado).toBe('Miranda')
+    expect(result.estadoId).toBe(14)
+    expect(result.municipio).toBe('Baruta')
+    expect(result.municipioId).toBe(102)
+    expect(result.parroquia).toBe('Baruta')
+    expect(result.parroquiaId).toBe(501)
   })
 })
 

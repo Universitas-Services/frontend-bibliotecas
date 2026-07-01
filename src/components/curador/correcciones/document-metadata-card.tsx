@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { extractDocumentCategorias } from '@/lib/document-categorias'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
-import { parseMetadatosObject } from '@/lib/metadata-schemas'
+import { parseMetadatosObject, TERRITORIAL_ID_KEYS } from '@/lib/metadata-schemas'
 
 export interface DocumentData {
   titulo?: string | null
@@ -64,6 +64,7 @@ const METADATA_LABELS: Record<string, string> = {
   fechaPromulgacion: 'Fecha promulgación',
   estado: 'Estado',
   municipio: 'Municipio',
+  parroquia: 'Parroquia',
   sala: 'Sala',
   tribunal: 'Tribunal',
   numeroSentencia: 'N° Sentencia',
@@ -89,6 +90,8 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
   const matrices = extractDocumentMatrices(document as Record<string, unknown>)
   const categorias = extractDocumentCategorias(document as Record<string, unknown>)
   const metadatos = parseMetadatosObject(document.metadatos)
+  const hiddenMetadataKeys = new Set<string>(TERRITORIAL_ID_KEYS)
+  const visibleMetadatos = Object.entries(metadatos).filter(([key]) => !hiddenMetadataKeys.has(key))
 
   return (
     <div className="flex flex-col gap-6">
@@ -184,9 +187,9 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
             </div>
           ) : null}
 
-          {Object.keys(metadatos).length > 0 ? (
+          {visibleMetadatos.length > 0 ? (
             <div className="mx-4 mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {Object.entries(metadatos).map(([key, value]) => (
+              {visibleMetadatos.map(([key, value]) => (
                 <MetadataField key={key} label={METADATA_LABELS[key] || key} value={value || '—'} />
               ))}
             </div>
