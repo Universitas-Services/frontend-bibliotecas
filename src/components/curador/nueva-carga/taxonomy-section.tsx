@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, ChevronDown } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { getCategoriasAdmin } from '@/app/actions/categorias'
 
 interface CategoriaItem {
   id?: string
   _id?: string
+  uuid?: string
   nombre: string
 }
 
@@ -20,8 +22,15 @@ interface TaxonomySectionProps {
 
 function getInitialCategoriaIds(initialCategorias: InitialCategoria[]): string[] {
   return initialCategorias
-    .map((categoria) => (typeof categoria === 'string' ? categoria : categoria.id || categoria._id))
-    .filter((id): id is string => Boolean(id))
+    .map((categoria) => {
+      if (typeof categoria === 'string') return categoria.trim()
+      return String(categoria.id || categoria._id || '').trim()
+    })
+    .filter(Boolean)
+}
+
+function getCategoriaId(cat: CategoriaItem): string {
+  return String(cat.id || cat._id || cat.uuid || '').trim()
 }
 
 export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}) {
@@ -30,7 +39,8 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
   const [selectedCategorias, setSelectedCategorias] = useState<CategoriaItem[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const containerRef = useRef<HTMLDivElement>(null)
+
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -41,9 +51,7 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
 
         if (initialCategorias && initialCategorias.length > 0) {
           const initialIds = getInitialCategoriaIds(initialCategorias)
-          const matchedCats = categorias.filter((cat) =>
-            initialIds.includes(cat.id || cat._id || ''),
-          )
+          const matchedCats = categorias.filter((cat) => initialIds.includes(getCategoriaId(cat)))
 
           if (matchedCats.length > 0) {
             setSelectedCategorias(matchedCats)
@@ -66,104 +74,128 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
   const handleSelectCategoria = (cat: CategoriaItem) => {
-    if (!selectedCategorias.some((c) => c.id === cat.id || c._id === cat._id)) {
+    const catId = getCategoriaId(cat)
+    if (!catId) return
+    if (!selectedCategorias.some((c) => getCategoriaId(c) === catId)) {
       setSelectedCategorias([...selectedCategorias, cat])
     }
     setSearchTerm('')
-    setShowDropdown(false)
+    inputRef.current?.focus()
   }
 
   const handleRemoveCategoria = (catId?: string) => {
     if (!catId) return
-    setSelectedCategorias(selectedCategorias.filter((c) => (c.id || c._id) !== catId))
+    setSelectedCategorias(selectedCategorias.filter((c) => getCategoriaId(c) !== catId))
   }
 
-  const filteredCategorias = categoriasDB.filter((cat) =>
-    cat.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
+  const selectedIds = new Set(selectedCategorias.map(getCategoriaId))
+
+  const filteredCategorias = categoriasDB.filter(
+    (cat) =>
+      cat.nombre.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      !selectedIds.has(getCategoriaId(cat)),
   )
 
   return (
     <div className="space-y-6">
-      {/* Inputs ocultos para que el form capture los IDs seleccionados */}
       {selectedCategorias.map((cat) => (
         <input
-          key={cat.id || cat._id}
+          key={getCategoriaId(cat)}
           type="hidden"
           name="categoriaIds"
-          value={cat.id || cat._id}
+          value={getCategoriaId(cat)}
         />
       ))}
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">Categorías asignadas</label>
-        <div
-          ref={containerRef}
-          className="relative flex min-h-[52px] flex-wrap items-center gap-2 rounded-md border border-gray-300 bg-white p-2"
-        >
-          {selectedCategorias.map((cat) => (
-            <Badge
-              key={`badge-${cat.id || cat._id}`}
-              className="flex items-center gap-1.5 rounded-full bg-[#00315C] px-3 py-1 font-normal text-white hover:bg-[#00315C]/90"
-            >
-              {cat.nombre}
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => handleRemoveCategoria(cat.id || cat._id)}
-              />
-            </Badge>
-          ))}
-
-          <div className="relative min-w-[150px] flex-1">
-            {loading ? (
-              <div className="flex items-center pl-2 text-xs text-gray-400">
-                <Loader2 className="mr-2 h-3 w-3 animate-spin" /> Cargando...
-              </div>
-            ) : (
-              <input
-                type="text"
-                placeholder={selectedCategorias.length === 0 ? 'Añadir categoría...' : ''}
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value)
+        <Popover open={showDropdown} onOpenChange={setShowDropdown} modal={false}>
+          <PopoverAnchor asChild>
+            <div
+              role="combobox"
+              aria-expanded={showDropdown}
+              className="relative flex min-h-[52px] cursor-text flex-wrap items-center gap-2 rounded-md border border-gray-300 bg-white p-2"
+              onClick={() => {
+                if (!loading) {
                   setShowDropdown(true)
-                }}
-                onFocus={() => setShowDropdown(true)}
-                className="w-full border-none bg-transparent px-2 text-sm text-gray-600 outline-none focus:ring-0"
-              />
-            )}
-
-            {/* Menú desplegable */}
-            {showDropdown && filteredCategorias.length > 0 && (
-              <div className="absolute top-full left-0 z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
-                {filteredCategorias.map((cat) => (
-                  <div
-                    key={cat.id || cat._id}
-                    onClick={() => handleSelectCategoria(cat)}
-                    className="cursor-pointer px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  inputRef.current?.focus()
+                }
+              }}
+            >
+              {selectedCategorias.map((cat) => (
+                <Badge
+                  key={`badge-${getCategoriaId(cat)}`}
+                  className="flex items-center gap-1.5 rounded-full bg-[#00315C] px-3 py-1 font-normal text-white hover:bg-[#00315C]/90"
+                >
+                  {cat.nombre}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      handleRemoveCategoria(getCategoriaId(cat))
+                    }}
+                    className="rounded-full hover:text-red-200"
+                    aria-label={`Quitar ${cat.nombre}`}
                   >
-                    {cat.nombre}
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+
+              <div className="flex min-w-[150px] flex-1 items-center gap-1">
+                {loading ? (
+                  <div className="flex items-center pl-2 text-xs text-gray-400">
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" /> Cargando...
                   </div>
-                ))}
+                ) : (
+                  <>
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      placeholder={
+                        selectedCategorias.length === 0 ? 'Buscar y seleccionar categoría...' : ''
+                      }
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value)
+                        setShowDropdown(true)
+                      }}
+                      onFocus={() => setShowDropdown(true)}
+                      className="w-full border-none bg-transparent px-2 text-sm text-gray-600 outline-none focus:ring-0"
+                    />
+                    <ChevronDown className="mr-1 h-4 w-4 shrink-0 text-gray-400" />
+                  </>
+                )}
               </div>
+            </div>
+          </PopoverAnchor>
+
+          <PopoverContent
+            align="start"
+            sideOffset={4}
+            className="max-h-60 w-[var(--radix-popover-anchor-width)] overflow-y-auto p-0"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+          >
+            {filteredCategorias.length > 0 ? (
+              filteredCategorias.map((cat) => (
+                <button
+                  key={getCategoriaId(cat)}
+                  type="button"
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => handleSelectCategoria(cat)}
+                  className="w-full cursor-pointer px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  {cat.nombre}
+                </button>
+              ))
+            ) : (
+              <p className="px-4 py-3 text-sm text-gray-500">
+                {loading ? 'Cargando categorías...' : 'No se encontraron categorías.'}
+              </p>
             )}
-            {showDropdown && filteredCategorias.length === 0 && !loading && (
-              <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-500 shadow-lg">
-                No se encontraron categorías.
-              </div>
-            )}
-          </div>
-        </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   )

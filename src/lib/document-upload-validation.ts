@@ -1,22 +1,39 @@
+import { validateMetadatosForm } from '@/lib/metadata-schemas'
+import { extractUploadTopLevelFields } from '@/lib/document-form-data'
+
 export type UploadValidationIssue = {
   field: string
   message: string
 }
 
-export function validateDocumentUploadForm(formData: FormData): UploadValidationIssue[] {
+type ValidateDocumentUploadOptions = {
+  schemaKey?: string | null
+  metadatosValues?: Record<string, string>
+}
+
+export function validateDocumentUploadForm(
+  formData: FormData,
+  options: ValidateDocumentUploadOptions = {},
+): UploadValidationIssue[] {
   const issues: UploadValidationIssue[] = []
 
   const tituloIntegro = String(formData.get('tituloIntegro') ?? '').trim()
   const subcarpetaNormaId = String(formData.get('subcarpetaNormaId') ?? '').trim()
-  const enteEmisor = String(formData.get('enteEmisor') ?? '').trim()
-  const fechaPublicacion = String(formData.get('fechaPublicacion') ?? '').trim()
+  const carpetaInternaId = String(formData.get('carpetaInternaId') ?? '').trim()
   const pais = String(formData.get('pais') ?? '').trim()
-  const ambitoTerritorial = String(formData.get('ambitoTerritorial') ?? '').trim()
+  const resumen = String(formData.get('resumen') ?? '').trim()
 
   if (!subcarpetaNormaId) {
     issues.push({
       field: 'subcarpetaNormaId',
-      message: 'Seleccione la clasificación completa del documento (tema y tipo de documento).',
+      message: 'Seleccione el tipo documental.',
+    })
+  }
+
+  if (!carpetaInternaId) {
+    issues.push({
+      field: 'carpetaInternaId',
+      message: 'Complete la clasificación interna hasta el nivel final.',
     })
   }
 
@@ -27,31 +44,17 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
     })
   }
 
-  if (!enteEmisor) {
-    issues.push({
-      field: 'enteEmisor',
-      message: 'El ente emisor es obligatorio.',
-    })
-  }
-
-  if (!fechaPublicacion) {
-    issues.push({
-      field: 'fechaPublicacion',
-      message: 'La fecha de publicación es obligatoria.',
-    })
-  }
-
-  if (!ambitoTerritorial) {
-    issues.push({
-      field: 'ambitoTerritorial',
-      message: 'Seleccione un ámbito territorial.',
-    })
-  }
-
   if (!pais) {
     issues.push({
       field: 'pais',
       message: 'El país es obligatorio.',
+    })
+  }
+
+  if (!resumen) {
+    issues.push({
+      field: 'resumen',
+      message: 'El resumen descriptivo es obligatorio.',
     })
   }
 
@@ -61,6 +64,28 @@ export function validateDocumentUploadForm(formData: FormData): UploadValidation
       field: 'categoriaIds',
       message: 'Debe asignar al menos una categoría.',
     })
+  }
+
+  if (options.schemaKey !== undefined) {
+    issues.push(...validateMetadatosForm(options.schemaKey ?? null, options.metadatosValues ?? {}))
+
+    const metadatosPayload = options.metadatosValues ?? {}
+    const topLevel = extractUploadTopLevelFields(metadatosPayload as Record<string, unknown>)
+
+    if (!topLevel.enteEmisor) {
+      issues.push({
+        field: 'enteEmisor',
+        message:
+          'Indique el ente emisor (por ejemplo: dependencia administrativa, autor u organismo emisor).',
+      })
+    }
+
+    if (!topLevel.fechaPublicacion) {
+      issues.push({
+        field: 'fechaPublicacion',
+        message: 'Indique la fecha de publicación del documento.',
+      })
+    }
   }
 
   return issues
@@ -81,5 +106,5 @@ export function validateBorradorForm(formData: FormData): UploadValidationIssue[
 }
 
 export function formatUploadValidationIssues(issues: UploadValidationIssue[]): string {
-  return issues.map((issue) => issue.message).join(' ')
+  return issues.map((issue) => issue.message).join('\n')
 }

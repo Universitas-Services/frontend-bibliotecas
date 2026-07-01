@@ -8,39 +8,47 @@ import { Badge } from '@/components/ui/badge'
 import { CharacterCounter } from '@/components/ui/character-counter'
 import { SEO_LIMITS } from '@/lib/seo-limits'
 
-export function SeoSection() {
-  const [resumen, setResumen] = useState('')
-  const [keywords, setKeywords] = useState<string[]>([])
-  const [keywordInput, setKeywordInput] = useState('')
+type SeoSectionProps = {
+  initialResumen?: string
+  initialEtiquetas?: string[]
+}
 
-  const addKeyword = () => {
-    const trimmed = keywordInput.trim().slice(0, SEO_LIMITS.keywordMaxLength)
+export function SeoSection({ initialResumen = '', initialEtiquetas = [] }: SeoSectionProps) {
+  const [resumen, setResumen] = useState(initialResumen)
+  const [etiquetas, setEtiquetas] = useState<string[]>(initialEtiquetas)
+  const [etiquetaInput, setEtiquetaInput] = useState('')
+
+  const addEtiqueta = () => {
+    const trimmed = etiquetaInput.trim().slice(0, SEO_LIMITS.keywordMaxLength)
     if (!trimmed) return
-    if (keywords.length >= SEO_LIMITS.maxKeywords) return
-    if (keywords.includes(trimmed)) {
-      setKeywordInput('')
+    if (etiquetas.length >= SEO_LIMITS.maxKeywords) return
+    if (etiquetas.includes(trimmed)) {
+      setEtiquetaInput('')
       return
     }
-    setKeywords((prev) => [...prev, trimmed])
-    setKeywordInput('')
+    setEtiquetas((prev) => [...prev, trimmed])
+    setEtiquetaInput('')
   }
 
-  const handleKeywordKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleEtiquetaKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      addKeyword()
+      addEtiqueta()
     }
   }
 
-  const removeKeyword = (keyword: string) => {
-    setKeywords((prev) => prev.filter((k) => k !== keyword))
+  const removeEtiqueta = (etiqueta: string) => {
+    setEtiquetas((prev) => prev.filter((k) => k !== etiqueta))
   }
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-[#00315C]">Resumen descriptivo</label>
+          <label className="text-sm font-medium text-[#00315C]">
+            Resumen descriptivo
+            <span className="ml-1 text-red-500">*</span>
+          </label>
           <CharacterCounter current={resumen.length} max={SEO_LIMITS.resumen} />
         </div>
         <Textarea
@@ -55,44 +63,42 @@ export function SeoSection() {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-[#00315C]">Palabras clave (Keywords)</label>
-          <CharacterCounter current={keywords.length} max={SEO_LIMITS.maxKeywords} />
+          <label className="text-sm font-medium text-[#00315C]">Etiquetas</label>
+          <CharacterCounter current={etiquetas.length} max={SEO_LIMITS.maxKeywords} />
         </div>
         <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-md border border-gray-300 bg-white p-2">
-          {keywords.map((keyword) => (
+          {etiquetas.map((etiqueta) => (
             <Badge
-              key={keyword}
+              key={etiqueta}
               variant="secondary"
               className="flex items-center gap-1.5 rounded-full bg-[#E2E8F0] px-3 py-1 font-normal text-[#334155] hover:bg-[#CBD5E1]"
             >
-              {keyword}
+              {etiqueta}
               <button
                 type="button"
-                onClick={() => removeKeyword(keyword)}
+                onClick={() => removeEtiqueta(etiqueta)}
                 className="rounded-full hover:text-red-600"
-                aria-label={`Quitar ${keyword}`}
+                aria-label={`Quitar ${etiqueta}`}
               >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           ))}
-          {keywords.length < SEO_LIMITS.maxKeywords ? (
+          {etiquetas.length < SEO_LIMITS.maxKeywords ? (
             <input
               type="text"
-              value={keywordInput}
+              value={etiquetaInput}
               onChange={(e) =>
-                setKeywordInput(e.target.value.slice(0, SEO_LIMITS.keywordMaxLength))
+                setEtiquetaInput(e.target.value.slice(0, SEO_LIMITS.keywordMaxLength))
               }
-              onKeyDown={handleKeywordKeyDown}
+              onKeyDown={handleEtiquetaKeyDown}
               maxLength={SEO_LIMITS.keywordMaxLength}
               placeholder="Escriba y presione Enter..."
               className="ml-2 min-w-[150px] flex-1 border-none bg-transparent text-sm text-gray-500 outline-none"
             />
           ) : null}
         </div>
-        {keywords.map((keyword) => (
-          <input key={keyword} type="hidden" name="keywords" value={keyword} />
-        ))}
+        <input type="hidden" name="etiquetas" value={JSON.stringify(etiquetas)} />
       </div>
     </div>
   )

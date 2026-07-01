@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { createUserAction } from '@/app/actions/users'
 import { FormCombobox } from '@/components/admin/form-combobox'
@@ -70,7 +71,7 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
 
     const validationError = validateCreateUserInput(input)
     if (validationError) {
-      toast.error(validationError)
+      toastError(validationError)
       return
     }
 
@@ -87,10 +88,10 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
     startTransition(async () => {
       const result = await createUserAction(formData)
       if (!result.success) {
-        toast.error(result.error)
+        toastError('No pudimos crear el usuario', result.error)
         return
       }
-      toast.success('Usuario creado correctamente.')
+      toastSuccess(USER_MSG.success.userCreated)
       router.push('/admin/usuarios')
     })
   }

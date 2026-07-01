@@ -3,6 +3,7 @@
 import { apiPost, apiGet, apiDelete } from '@/lib/api-client'
 import {
   normalizeCarpetaInterna,
+  mapCarpetasFromApi,
   type CarpetaInterna,
   type Subcarpeta,
   type TemaPrincipal,
@@ -133,14 +134,48 @@ export async function getTiposNormaAction(subcarpetaId: string): Promise<Carpeta
     return []
   }
 
-  if (Array.isArray(result.data)) {
-    return result.data
-      .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
-      .map(normalizeCarpetaInterna)
-      .filter((item) => item.id)
+  return mapCarpetasFromApi(result.data)
+}
+
+/** Hijos de una carpeta interna (cascada recursiva hasta hoja). */
+export async function getCarpetasInternasHijosAction(
+  carpetaInternaId: string,
+): Promise<CarpetaInterna[]> {
+  const result = await apiGet(`/admin/storage/carpeta-interna/${carpetaInternaId}/hijos`)
+
+  if (!result.success) {
+    return []
   }
 
-  return []
+  let carpetas = mapCarpetasFromApi(result.data)
+
+  if (carpetas.length === 0) {
+    const detailResult = await apiGet(`/admin/storage/carpeta-interna/${carpetaInternaId}`)
+    if (detailResult.success && detailResult.data && typeof detailResult.data === 'object') {
+      const detailRecord = detailResult.data as Record<string, unknown>
+      carpetas = mapCarpetasFromApi(
+        detailRecord.children ??
+          detailRecord.hijos ??
+          detailRecord.carpetasInternas ??
+          detailRecord.carpetasHijas,
+      )
+    }
+  }
+
+  if (
+    process.env.NODE_ENV === 'development' &&
+    carpetas.length === 0 &&
+    result.data != null &&
+    result.data !== '' &&
+    !(Array.isArray(result.data) && result.data.length === 0)
+  ) {
+    console.warn(
+      `[getCarpetasInternasHijosAction] Respuesta sin carpetas parseables para ${carpetaInternaId}:`,
+      result.data,
+    )
+  }
+
+  return carpetas
 }
 
 export async function eliminarTemaAction(temaId: string): Promise<CrearTemaResponse> {

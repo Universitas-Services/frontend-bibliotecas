@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 import { rechazarDocumentoAction } from '@/app/actions/workflows'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,7 +36,7 @@ export function RechazarModal({
 
   const handleRechazar = async () => {
     if (motivo.trim().length < 10) {
-      toast.error('El motivo de rechazo debe tener al menos 10 caracteres.')
+      toastError(USER_MSG.validation.rejectionReasonMin)
       return
     }
 
@@ -44,15 +45,17 @@ export function RechazarModal({
     setIsPending(false)
 
     if (!result.success) {
-      toast.error('Error al rechazar el documento', {
-        description: [result.error, result.details].filter(Boolean).join('\n'),
-      })
+      toastError(
+        USER_MSG.error.rejectDocument,
+        [result.error, result.details].filter(Boolean).join('\n'),
+      )
       return
     }
 
-    toast.success('Documento rechazado', {
-      description: 'El documento ha sido devuelto al curador para sus correcciones.',
-    })
+    toastSuccess(
+      USER_MSG.success.documentRejectedRevisor,
+      'El curador recibirá sus observaciones para realizar las correcciones.',
+    )
     setMotivo('')
     onOpenChange(false)
     router.refresh()

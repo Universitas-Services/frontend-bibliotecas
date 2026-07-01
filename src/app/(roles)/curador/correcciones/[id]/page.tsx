@@ -8,28 +8,21 @@ import {
 } from '@/components/curador/correcciones/corrections-footer'
 import { getDocumentTimestamp } from '@/lib/session-shared'
 import { getDocumentByIdAction } from '@/app/actions/documents'
-import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default async function CorreccionesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [documentRes, metadataRes, notasRes] = await Promise.all([
+  const [documentRes, notasRes] = await Promise.all([
     getDocumentByIdAction(id),
-    getMetadataByDocumentIdAction(id),
     getNotasByDocumentoAction(id),
   ])
 
   const docData = documentRes.success ? documentRes.data : null
-  const metadataData = metadataRes.success ? metadataRes.data : null
   const notas = notasRes.success ? notasRes.data : []
 
-  // Combina los datos para la ficha técnica
-  const combinedData = {
-    ...docData,
-    ...metadataData,
-  }
+  const combinedData = docData
 
   const titulo = combinedData?.titulo || combinedData?.nombreBreve || 'Documento sin título'
   const estadoBackend = combinedData?.estado || 'EN REVISIÓN'

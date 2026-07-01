@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { CloudUpload } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -49,7 +50,7 @@ export function MatrixUploadPanel({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!file) {
-      toast.error('Debe seleccionar un archivo para cargar.')
+      toastError(USER_MSG.validation.uploadFile)
       return
     }
 
@@ -59,10 +60,10 @@ export function MatrixUploadPanel({
     startTransition(async () => {
       const result = await uploadAction(formData)
       if (!result.success) {
-        toast.error(result.error)
+        toastError(USER_MSG.error.uploadMatrix, result.error)
         return
       }
-      toast.success(`${title}: archivo cargado correctamente.`)
+      toastSuccess(USER_MSG.success.matrixUploaded, title)
       setFile(null)
       setFileName(null)
       router.refresh()

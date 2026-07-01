@@ -1,7 +1,6 @@
 import Link from 'next/link'
 
 import { getDocumentByIdAction } from '@/app/actions/documents'
-import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
 import { AdminApprovePanel } from '@/components/admin/gestion-documental/admin-approve-panel'
 import { AdminNotasPanel } from '@/components/admin/gestion-documental/admin-notas-panel'
@@ -20,17 +19,15 @@ type PageProps = {
 export default async function AdminDocumentReviewPage({ params }: PageProps) {
   const { id } = await params
 
-  const [documentRes, metadataRes, notasRes] = await Promise.all([
+  const [documentRes, notasRes] = await Promise.all([
     getDocumentByIdAction(id),
-    getMetadataByDocumentIdAction(id),
     getNotasByDocumentoAction(id),
   ])
 
   const docData = documentRes.success ? documentRes.data : null
-  const metadataData = metadataRes.success ? metadataRes.data : null
   const notas = notasRes.success ? notasRes.data : []
 
-  const combinedData = { ...docData, ...metadataData }
+  const combinedData = docData
   const titulo =
     combinedData?.titulo ||
     combinedData?.tituloIntegro ||

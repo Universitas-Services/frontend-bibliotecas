@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CI: true
-      API_BASE_URL: https://biblioteca-legal-backend.onrender.com
+      API_BASE_URL: https://biblioteca-legal-backend-693924722323.us-central1.run.app
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4

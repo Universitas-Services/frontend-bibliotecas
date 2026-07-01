@@ -1,26 +1,33 @@
 'use client'
 
-import { useRef, useState, useTransition, useCallback, useEffect } from 'react'
+import { useRef, useState, useTransition, useCallback, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 
-import {
-  uploadDocumentAction,
-  uploadReformaAction,
-  updateDocumentAction,
-  getDocumentByIdAction,
-} from '@/app/actions/documents'
-import { publicarBorradorAction, uploadBorradorAction } from '@/app/actions/curador-documents'
+import { toastError, toastSuccess, toastWarning } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
+
+import { getDocumentByIdAction } from '@/app/actions/documents'
+import { publicarBorradorAction } from '@/app/actions/curador-documents'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
 import { mapBackendStatus } from '@/lib/document-status'
 import {
-  createMetadataAction,
-  updateMetadataAction,
-  getMetadataByDocumentIdAction,
-  type CreateMetadataPayload,
-} from '@/app/actions/metadatas'
-import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
+  buildDocumentMultipartPayload,
+  resolveGacetaUploadFile,
+  resolvePrimaryUploadFile,
+} from '@/lib/document-form-data'
+import {
+  updateDocumentClient,
+  uploadBorradorClient,
+  uploadDocumentClient,
+  uploadReformaClient,
+} from '@/lib/document-upload-client'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
+import {
+  buildMetadatosFromForm,
+  parseMetadatosObject,
+  resolveMetadataSchemaKey,
+} from '@/lib/metadata-schemas'
 import {
   formatUploadValidationIssues,
   validateBorradorForm,
@@ -32,7 +39,8 @@ import {
 } from '@/components/curador/nueva-carga/document-classification'
 import { LegalIdentification } from '@/components/curador/nueva-carga/legal-identification'
 import { MatricesSection } from '@/components/curador/nueva-carga/matrices-section'
-import { MetadataForm } from '@/components/curador/nueva-carga/metadata-form'
+import { MetadataFormDynamic } from '@/components/curador/nueva-carga/metadata-form-dynamic'
+import { UniversalMetadataSection } from '@/components/curador/nueva-carga/universal-metadata-section'
 import { ReformAlert } from '@/components/curador/nueva-carga/reform-alert'
 import { SeoSection } from '@/components/curador/nueva-carga/seo-section'
 import { TaxonomySection } from '@/components/curador/nueva-carga/taxonomy-section'
@@ -62,6 +70,48 @@ function readInitialCategorias(value: unknown): InitialCategoria[] | undefined {
   )
 }
 
+function readEtiquetas(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(String).filter((item) => item.trim())
+  }
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown
+      if (Array.isArray(parsed)) return parsed.map(String).filter((item) => item.trim())
+    } catch {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    }
+  }
+  return []
+}
+
+function prepareOutboundForm(
+  form: HTMLFormElement,
+  classification: ClassificationValues,
+): FormData {
+  const outbound = new FormData(form)
+  const tituloIntegro = (outbound.get('tituloIntegro') as string) || ''
+
+  if (!outbound.get('titulo') && tituloIntegro) {
+    outbound.set('titulo', tituloIntegro)
+  }
+  if (!outbound.get('nombreBreve')) {
+    outbound.set('nombreBreve', tituloIntegro || 'Sin alias')
+  }
+
+  if (classification.tipoDocumentoId) {
+    outbound.set('subcarpetaNormaId', classification.tipoDocumentoId)
+  }
+  if (classification.carpetaInternaId) {
+    outbound.set('carpetaInternaId', classification.carpetaInternaId)
+  }
+
+  return outbound
+}
+
 export default function NuevaCargaPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -70,136 +120,121 @@ export default function NuevaCargaPage() {
 
   const formRef = useRef<HTMLFormElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedGacetaFile, setSelectedGacetaFile] = useState<File | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  // Edit mode state
   const [initialData, setInitialData] = useState<{
     documento: Record<string, unknown>
-    metadata: Record<string, unknown> | null
   } | null>(null)
   const [isLoadingInitial, setIsLoadingInitial] = useState(!!editId)
   const [shouldReenviar, setShouldReenviar] = useState(reenviarFromUrl)
 
-  // Classification state from child component
   const [classification, setClassification] = useState<ClassificationValues>({
     temaPrincipalId: '',
     temaPrincipalNombre: '',
     tipoDocumentoId: '',
     tipoDocumentoNombre: '',
-    tipoNormaId: '',
-    tipoNormaNombre: '',
+    carpetaInternaId: '',
+    carpetaPathNames: [],
   })
 
+  const [metadatosValues, setMetadatosValues] = useState<Record<string, string>>({})
+  const prevTipoDocumentoRef = useRef('')
+
   const handleClassificationChange = useCallback((values: ClassificationValues) => {
+    if (prevTipoDocumentoRef.current && prevTipoDocumentoRef.current !== values.tipoDocumentoId) {
+      setMetadatosValues({})
+    }
+    prevTipoDocumentoRef.current = values.tipoDocumentoId
     setClassification(values)
   }, [])
+
+  const schemaKey = useMemo(
+    () =>
+      resolveMetadataSchemaKey(classification.tipoDocumentoNombre, classification.carpetaPathNames),
+    [classification.tipoDocumentoNombre, classification.carpetaPathNames],
+  )
 
   const initialMatrices = initialData
     ? extractDocumentMatrices(initialData.documento)
     : { matrizAId: undefined, matrizBIds: [] as string[] }
 
-  // Fetch initial data if in edit mode
   useEffect(() => {
     if (!editId) return
 
     async function loadInitialData() {
       try {
-        const [docRes, metaRes, notasRes] = await Promise.all([
+        const [docRes, notasRes] = await Promise.all([
           getDocumentByIdAction(editId!),
-          getMetadataByDocumentIdAction(editId!),
           getNotasByDocumentoAction(editId!),
         ])
 
         if (docRes.success) {
           const documento = (docRes.data ?? {}) as Record<string, unknown>
-          setInitialData({
-            documento,
-            metadata: metaRes.success && metaRes.data ? metaRes.data : null,
-          })
+          setInitialData({ documento })
 
           const estado = mapBackendStatus(String(documento.estado || ''))
           const tieneNotas = notasRes.success && notasRes.data.length > 0
           if (!reenviarFromUrl && estado === 'borrador' && tieneNotas) {
             setShouldReenviar(true)
           }
-          // Pre-populate classification names so DocumentClassification can auto-select IDs
-          if (metaRes.success && metaRes.data) {
-            setClassification((prev) => ({
-              ...prev,
-              temaPrincipalNombre: (metaRes.data.temaPrincipal as string) || '',
-              tipoDocumentoNombre: (metaRes.data.tipoDocumento as string) || '',
-              tipoNormaNombre: (metaRes.data.tipoNorma as string) || '',
-            }))
+
+          setClassification((prev) => ({
+            ...prev,
+            tipoDocumentoId: readString(documento.subcarpetaNormaId) || prev.tipoDocumentoId,
+            carpetaInternaId: readString(documento.carpetaInternaId) || prev.carpetaInternaId,
+          }))
+
+          const parsedMetadatos = parseMetadatosObject(documento.metadatos)
+          if (Object.keys(parsedMetadatos).length > 0) {
+            setMetadatosValues(parsedMetadatos)
           }
         } else {
-          toast.error('Error al cargar el documento original', { description: docRes.error })
+          toastError(USER_MSG.error.loadDocument, docRes.error)
         }
       } catch (err) {
         console.error('Error fetching edit data:', err)
-        toast.error('Error de conexión al cargar los datos')
+        toastError(USER_MSG.error.loadDocument, null, USER_MSG.common.connection)
       } finally {
         setIsLoadingInitial(false)
       }
     }
 
     loadInitialData()
-  }, [editId])
+  }, [editId, reenviarFromUrl])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (isPending) {
-      return
-    }
+    if (isPending) return
 
     if (!selectedFile && !editId) {
-      toast.error('Debe seleccionar un archivo PDF o DOC antes de publicar.')
+      toastError(USER_MSG.validation.selectFilePublish)
       return
     }
 
     const form = formRef.current ?? event.currentTarget
-    const outbound = new FormData(form)
+    const outbound = prepareOutboundForm(form, classification)
+    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
+    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
 
-    // 1. El backend requiere 'titulo' y 'tituloIntegro'
-    const tituloIntegro = (outbound.get('tituloIntegro') as string) || ''
-    if (!outbound.get('titulo') && tituloIntegro) {
-      outbound.set('titulo', tituloIntegro)
-    }
-
-    // 2. El backend requiere 'nombreBreve'
-    if (!outbound.get('nombreBreve')) {
-      outbound.set('nombreBreve', tituloIntegro || 'Sin alias')
-    }
-
-    // Extract categories
-    const categorias = outbound.getAll('categoriaIds')
-    // Remove from outbound so it doesn't mess with other parts, we will handle it in uploadFormData
-
-    if (classification.tipoDocumentoId) {
-      outbound.set('subcarpetaNormaId', classification.tipoDocumentoId)
-    }
-
-    if (selectedFile) {
-      outbound.set('file', selectedFile, selectedFile.name)
-    }
-
-    const validationIssues = validateDocumentUploadForm(outbound)
-    // Ignore file validation if we are editing and no new file was selected
-    const filteredIssues =
-      editId && !selectedFile
-        ? validationIssues.filter((i) => i.field !== 'file')
-        : validationIssues
-
-    if (filteredIssues.length > 0) {
-      toast.error('Complete los campos obligatorios', {
-        description: formatUploadValidationIssues(filteredIssues),
-        duration: 10000,
-      })
+    if (!primaryFile && !editId) {
+      toastError(USER_MSG.validation.selectFilePublish)
       return
     }
 
-    if (!classification.tipoDocumentoId?.trim()) {
-      toast.error('Complete la clasificación: tema y tipo de documento son requeridos.')
+    const categorias = outbound.getAll('categoriaIds')
+
+    const validationIssues = validateDocumentUploadForm(outbound, {
+      schemaKey,
+      metadatosValues,
+    })
+
+    if (validationIssues.length > 0) {
+      toast.error(USER_MSG.validation.requiredFields, {
+        description: formatUploadValidationIssues(validationIssues),
+        duration: 10000,
+      })
       return
     }
 
@@ -207,52 +242,54 @@ export default function NuevaCargaPage() {
     const leyViejaId = String(outbound.get('leyViejaId') ?? '').trim()
 
     if (isReforma && !leyViejaId) {
-      toast.error('Seleccione la ley original que está siendo reformada.')
+      toastError(USER_MSG.validation.reformaLey)
       return
     }
 
     if (isReforma && editId) {
-      toast.error('La edición como reforma aún no está disponible. Cree una nueva carga.')
+      toastError(USER_MSG.validation.reformaEditUnavailable)
       return
     }
 
     startTransition(async () => {
+      const metadatos = buildMetadatosFromForm(schemaKey, metadatosValues)
       const uploadFormData = buildDocumentMultipartPayload({
         outbound,
         categorias,
         classification,
-        file: selectedFile,
+        file: primaryFile,
+        gacetaFile,
+        metadatos,
       })
 
-      // Execute Update, Reforma or Upload
       const documentResponse = editId
-        ? await updateDocumentAction(editId, uploadFormData)
+        ? await updateDocumentClient(editId, uploadFormData)
         : isReforma
-          ? await uploadReformaAction(uploadFormData)
-          : await uploadDocumentAction(uploadFormData)
+          ? await uploadReformaClient(uploadFormData)
+          : await uploadDocumentClient(uploadFormData)
 
       if (documentResponse.error) {
         const isAuth =
           documentResponse.status === 401 ||
           documentResponse.code === 'TOKEN_EXPIRED' ||
           documentResponse.code === 'NO_TOKEN'
-        const statusLabel = documentResponse.status ? ` (${documentResponse.status})` : ''
-        toast.error(`Error al ${editId ? 'actualizar' : 'subir'} el documento${statusLabel}`, {
-          description: [documentResponse.error, documentResponse.details]
-            .filter(Boolean)
-            .join('\n'),
-          duration: 15000,
-          action: isAuth
-            ? {
-                label: 'Iniciar sesión',
-                onClick: () => router.push('/login?logout=1'),
-              }
-            : undefined,
-        })
+        toastError(
+          editId ? USER_MSG.error.saveDocument : USER_MSG.error.uploadDocument,
+          [documentResponse.error, documentResponse.details].filter(Boolean).join('\n'),
+          undefined,
+          {
+            duration: 15000,
+            action: isAuth
+              ? {
+                  label: 'Iniciar sesión',
+                  onClick: () => router.push('/login?logout=1'),
+                }
+              : undefined,
+          },
+        )
         return
       }
 
-      // Step 2: Extract documentoId
       const responseData = documentResponse.data as Record<string, unknown> | null
       const documentoId =
         editId ||
@@ -262,75 +299,32 @@ export default function NuevaCargaPage() {
         ''
 
       if (!documentoId) {
-        toast.warning(
-          'Documento subido, pero no se pudo obtener el ID para guardar los metadatos.',
-          {
-            duration: 10000,
-          },
-        )
-        setTimeout(() => {
-          router.push('/curador/gestion-documental')
-        }, 800)
+        toastWarning(USER_MSG.error.partialUpload, null, { duration: 10000 })
+        setTimeout(() => router.push('/curador/gestion-documental'), 800)
         return
       }
 
-      // Step 3: Create metadata
-      const metadataPayload: CreateMetadataPayload = {
-        documentoId,
-        temaPrincipal:
-          classification.temaPrincipalNombre || (outbound.get('temaPrincipal') as string) || '',
-        tipoDocumento:
-          classification.tipoDocumentoNombre || (outbound.get('tipoDocumento') as string) || '',
-        tipoNorma: classification.tipoNormaNombre || (outbound.get('tipoNorma') as string) || '',
-        enteEmisor: (outbound.get('enteEmisor') as string) || '',
-        fechaPublicacion: (outbound.get('fechaPublicacion') as string) || '',
-        numeroGaceta: (outbound.get('numeroGaceta') as string) || '',
-        ambitoTerritorial: ((outbound.get('ambitoTerritorial') as string) || 'NACIONAL') as
-          | 'NACIONAL'
-          | 'ESTADAL',
-        pais: (outbound.get('pais') as string) || '',
-      }
-
-      const metadataId = readString(initialData?.metadata?.id)
-      const metadataResponse =
-        editId && metadataId
-          ? await updateMetadataAction(metadataId, metadataPayload)
-          : await createMetadataAction(metadataPayload)
-
-      if (!metadataResponse.success) {
-        toast.warning(
-          `Documento ${editId ? 'actualizado' : 'subido'} correctamente, pero hubo un error al guardar los metadatos.`,
-          {
-            description: metadataResponse.error,
-            duration: 15000,
-          },
-        )
-      } else if (editId && shouldReenviar) {
+      if (editId && shouldReenviar) {
         const publicarResult = await publicarBorradorAction(documentoId, {
           subcarpetaNormaId: classification.tipoDocumentoId || '',
-          carpetaInternaId: classification.tipoNormaId || undefined,
+          carpetaInternaId: classification.carpetaInternaId || undefined,
           categoriaIds: categorias.map(String).filter((id) => id.trim()),
         })
         if (!publicarResult.success) {
-          toast.warning('Cambios guardados, pero no se pudo reenviar a revisión.', {
-            description: [publicarResult.error, publicarResult.details].filter(Boolean).join('\n'),
-            duration: 15000,
-          })
-          setTimeout(() => {
-            router.push('/curador/gestion-documental')
-          }, 800)
+          toastWarning(
+            USER_MSG.error.partialResubmit,
+            [publicarResult.error, publicarResult.details].filter(Boolean).join('\n'),
+            { duration: 15000 },
+          )
+          setTimeout(() => router.push('/curador/gestion-documental'), 800)
           return
         }
-        toast.success('Documento corregido y enviado a revisión correctamente.')
+        toastSuccess(USER_MSG.success.documentCorrected)
       } else {
-        toast.success(
-          `¡Documento ${editId ? 'actualizado' : 'cargado'} y metadatos guardados exitosamente!`,
-        )
+        toastSuccess(editId ? USER_MSG.success.documentUpdated : USER_MSG.success.documentUploaded)
       }
 
-      setTimeout(() => {
-        router.push('/curador/gestion-documental')
-      }, 800)
+      setTimeout(() => router.push('/curador/gestion-documental'), 800)
     })
   }
 
@@ -338,26 +332,26 @@ export default function NuevaCargaPage() {
     if (isPending) return
 
     if (!selectedFile && !editId) {
-      toast.error('Debe seleccionar un archivo PDF o DOC antes de guardar el borrador.')
+      toastError(USER_MSG.validation.selectFileDraft)
       return
     }
 
     const form = formRef.current
     if (!form) return
 
-    const outbound = new FormData(form)
-    const tituloIntegro = (outbound.get('tituloIntegro') as string) || ''
+    const outbound = prepareOutboundForm(form, classification)
+    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
+    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
 
-    if (!outbound.get('titulo') && tituloIntegro) {
-      outbound.set('titulo', tituloIntegro)
-    }
-    if (!outbound.get('nombreBreve')) {
-      outbound.set('nombreBreve', tituloIntegro || 'Sin alias')
+    if (!primaryFile && !editId) {
+      toastError(USER_MSG.validation.selectFileDraft)
+      return
     }
 
     const validationIssues = validateBorradorForm(outbound)
+
     if (validationIssues.length > 0) {
-      toast.error('Complete los campos obligatorios', {
+      toast.error(USER_MSG.validation.requiredFields, {
         description: formatUploadValidationIssues(validationIssues),
         duration: 10000,
       })
@@ -366,39 +360,44 @@ export default function NuevaCargaPage() {
 
     startTransition(async () => {
       const categorias = outbound.getAll('categoriaIds')
+      const metadatos = buildMetadatosFromForm(schemaKey, metadatosValues)
       const borradorFormData = buildDocumentMultipartPayload({
         outbound,
         categorias,
         classification,
-        file: selectedFile,
+        file: primaryFile,
+        gacetaFile,
+        metadatos,
       })
 
       const response = editId
-        ? await updateDocumentAction(editId, borradorFormData)
-        : await uploadBorradorAction(borradorFormData)
+        ? await updateDocumentClient(editId, borradorFormData)
+        : await uploadBorradorClient(borradorFormData)
 
       if (response.error) {
         const isAuth =
           response.status === 401 ||
           response.code === 'TOKEN_EXPIRED' ||
           response.code === 'NO_TOKEN'
-        toast.error('Error al guardar el borrador', {
-          description: [response.error, response.details].filter(Boolean).join('\n'),
-          duration: 15000,
-          action: isAuth
-            ? {
-                label: 'Iniciar sesión',
-                onClick: () => router.push('/login?logout=1'),
-              }
-            : undefined,
-        })
+        toastError(
+          USER_MSG.error.saveDraft,
+          [response.error, response.details].filter(Boolean).join('\n'),
+          undefined,
+          {
+            duration: 15000,
+            action: isAuth
+              ? {
+                  label: 'Iniciar sesión',
+                  onClick: () => router.push('/login?logout=1'),
+                }
+              : undefined,
+          },
+        )
         return
       }
 
-      toast.success('Borrador guardado correctamente.')
-      setTimeout(() => {
-        router.push('/curador/gestion-documental?estado=borradores')
-      }, 800)
+      toastSuccess(USER_MSG.success.draftSaved)
+      setTimeout(() => router.push('/curador/gestion-documental?estado=borradores'), 800)
     })
   }
 
@@ -410,6 +409,12 @@ export default function NuevaCargaPage() {
       </div>
     )
   }
+
+  const documento = initialData?.documento
+  const ocrFromDoc = readBoolean(documento?.ocrHabilitado)
+  const ocrLegacy = documento?.soloLecturaImagen
+  const initialOcr =
+    ocrFromDoc !== undefined ? ocrFromDoc : ocrLegacy !== undefined ? !ocrLegacy : true
 
   return (
     <form
@@ -435,9 +440,7 @@ export default function NuevaCargaPage() {
         </div>
 
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
-          {/* Main column */}
           <div className="flex flex-col gap-6 lg:col-span-8">
-            {/* 1. Clasificación del documento (NEW - first section) */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
                 {editId ? 'Clasificación del documento (Edición)' : 'Clasificación del documento'}
@@ -448,18 +451,16 @@ export default function NuevaCargaPage() {
               <DocumentClassification
                 onChange={handleClassificationChange}
                 initialValues={
-                  initialData?.metadata
+                  documento
                     ? {
-                        temaPrincipalNombre: readString(initialData.metadata.temaPrincipal),
-                        tipoDocumentoNombre: readString(initialData.metadata.tipoDocumento),
-                        tipoNormaNombre: readString(initialData.metadata.tipoNorma),
+                        subcarpetaNormaId: readString(documento.subcarpetaNormaId),
+                        carpetaInternaId: readString(documento.carpetaInternaId),
                       }
                     : undefined
                 }
               />
             </Card>
 
-            {/* 2. Fuente documental (Upload) */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
                 Fuente documental
@@ -470,64 +471,75 @@ export default function NuevaCargaPage() {
               <UploadZone
                 disabled={isPending}
                 onFileSelected={setSelectedFile}
+                onGacetaSelected={setSelectedGacetaFile}
                 initialFileName={editId ? 'Documento original cargado' : undefined}
-                initialOcr={readBoolean(initialData?.documento?.soloLecturaImagen)}
+                initialGacetaFileName={
+                  readString(documento?.gacetaPdfUrl) ? 'Gaceta cargada previamente' : undefined
+                }
+                initialOcr={initialOcr}
               />
             </Card>
 
-            {/* 3. Identificación legal */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Identificación legal</h2>
               <LegalIdentification
                 initialValues={
-                  initialData?.documento
+                  documento
                     ? {
                         tituloIntegro:
-                          readString(initialData.documento.tituloIntegro) ||
-                          readString(initialData.documento.titulo),
-                        nombreBreve: readString(initialData.documento.nombreBreve),
+                          readString(documento.tituloIntegro) || readString(documento.titulo),
+                        nombreBreve: readString(documento.nombreBreve),
                       }
                     : undefined
                 }
               />
             </Card>
 
-            {/* 4. Metadatos del documento (MOVED from sidebar to main body) */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
-                Metadatos del documento
+                Metadatos universales
                 <span className="rounded-sm bg-red-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-700 uppercase">
                   Requerido
                 </span>
               </h2>
-              <MetadataForm
-                tipoDocumentoNombre={classification.tipoDocumentoNombre}
+              <UniversalMetadataSection
                 initialValues={
-                  initialData?.metadata
+                  documento
                     ? {
-                        ambitoTerritorial: readString(initialData.metadata.ambitoTerritorial),
-                        numeroGaceta: readString(initialData.metadata.numeroGaceta),
-                        pais: readString(initialData.metadata.pais),
-                        enteEmisor: readString(initialData.metadata.enteEmisor),
-                        fechaPublicacion: readString(initialData.metadata.fechaPublicacion),
+                        pais: readString(documento.pais),
+                        jerarquiaSuperiorId: readString(documento.jerarquiaSuperiorId),
+                        documentoRelacionadoId: readString(documento.documentoRelacionadoId),
                       }
                     : undefined
                 }
               />
             </Card>
 
-            {/* 5. Categorías */}
+            <Card className="p-8 shadow-sm">
+              <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
+                Metadatos específicos
+                <span className="rounded-sm bg-red-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-700 uppercase">
+                  Requerido
+                </span>
+              </h2>
+              <MetadataFormDynamic
+                key={schemaKey || 'pending-schema'}
+                schemaKey={schemaKey}
+                initialValues={metadatosValues}
+                onChange={setMetadatosValues}
+              />
+            </Card>
+
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Categorías</h2>
               <TaxonomySection
                 initialCategorias={
-                  readInitialCategorias(initialData?.documento?.categorias) ||
-                  readInitialCategorias(initialData?.documento?.categoriaIds)
+                  readInitialCategorias(documento?.categorias) ||
+                  readInitialCategorias(documento?.categoriaIds)
                 }
               />
             </Card>
 
-            {/* 6. Matrices */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Matrices de vinculación</h2>
               <MatricesSection
@@ -536,16 +548,17 @@ export default function NuevaCargaPage() {
               />
             </Card>
 
-            {/* 7. SEO */}
             <Card className="p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-bold text-[#00315C]">Enriquecimiento y SEO</h2>
-              <SeoSection />
+              <SeoSection
+                key={editId || 'new-document'}
+                initialResumen={readString(documento?.resumen) || ''}
+                initialEtiquetas={readEtiquetas(documento?.etiquetas ?? documento?.keywords)}
+              />
             </Card>
           </div>
 
-          {/* Sidebar */}
           <div className="flex flex-col gap-6 lg:col-span-4">
-            {/* Grafo Legal card */}
             <Card className="border-none bg-[#001D3D] p-6 text-white shadow-md">
               <div className="flex items-start gap-4">
                 <div className="rounded-lg bg-[#00315C] p-2">

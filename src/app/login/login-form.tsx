@@ -6,7 +6,8 @@ import { loginAction } from '@/app/actions/auth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError } from '@/lib/toast-messages'
+import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
 import { useEffect } from 'react'
 
 const initialState = {
@@ -20,7 +21,7 @@ export function LoginForm() {
 
   useEffect(() => {
     if (state?.error) {
-      toast.error(state.error)
+      toastError(USER_MSG.error.login, toUserFacingMessage(state.error))
     }
   }, [state?.error])
 

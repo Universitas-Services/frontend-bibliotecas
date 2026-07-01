@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getApiBaseUrl } from '@/lib/api'
+import { DEFAULT_API_BASE_URL, getApiBaseUrl } from '@/lib/api'
 
 describe('getApiBaseUrl', () => {
   afterEach(() => {
@@ -14,6 +14,6 @@ describe('getApiBaseUrl', () => {
 
   it('falls back to default production URL when unset', () => {
     delete process.env.API_BASE_URL
-    expect(getApiBaseUrl()).toBe('https://biblioteca-legal-backend.onrender.com')
+    expect(getApiBaseUrl()).toBe(DEFAULT_API_BASE_URL)
   })
 })

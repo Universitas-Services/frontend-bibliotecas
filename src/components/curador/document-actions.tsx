@@ -4,7 +4,8 @@ import { useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, Pencil, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { deleteDocumentAction } from '@/app/actions/documents'
 import {
@@ -45,12 +46,10 @@ export function DocumentActions({
     startTransition(async () => {
       const result = await deleteDocumentAction(documentId)
       if (result.success) {
-        toast.success('Documento eliminado correctamente.')
+        toastSuccess(USER_MSG.success.documentDeleted)
         router.refresh()
       } else {
-        toast.error('Error al eliminar el documento', {
-          description: result.error,
-        })
+        toastError(USER_MSG.error.deleteDocument, result.error)
       }
     })
   }

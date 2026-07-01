@@ -2,7 +2,8 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { Save, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,7 +52,7 @@ export function NuevoInstrumentoForm({ temas }: NuevoInstrumentoFormProps) {
       .catch(() => {
         if (isMounted) {
           setIsLoadingDocumentos(false)
-          toast.error('Error al cargar tipos de documento para este tema')
+          toastError(USER_MSG.error.loadTiposDocumento)
         }
       })
 
@@ -63,15 +64,15 @@ export function NuevoInstrumentoForm({ temas }: NuevoInstrumentoFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!temaId) {
-      toast.error('Debe seleccionar un tema principal')
+      toastError(USER_MSG.validation.temaRequired)
       return
     }
     if (!subcarpetaId) {
-      toast.error('Debe seleccionar un tipo de documento')
+      toastError(USER_MSG.validation.tipoDocumentoRequired)
       return
     }
     if (!nombreCarpeta.trim()) {
-      toast.error('El nombre del instrumento (tipo de norma) es requerido')
+      toastError(USER_MSG.validation.instrumentoName)
       return
     }
 
@@ -83,13 +84,11 @@ export function NuevoInstrumentoForm({ temas }: NuevoInstrumentoFormProps) {
       )
 
       if (response.error) {
-        toast.error('Error al crear el tipo de norma', {
-          description: response.error || response.details,
-        })
+        toastError(USER_MSG.error.createTipoNorma, response.error || response.details)
         return
       }
 
-      toast.success('Tipo de norma creado exitosamente')
+      toastSuccess(USER_MSG.success.tipoNormaCreated)
       setNombreCarpeta('')
       setDescripcion('')
       setSubcarpetaId('')

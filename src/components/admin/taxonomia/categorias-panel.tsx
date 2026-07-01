@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useState } from 'react'
 import { BookOpen, Edit, PlusCircle, Search, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,10 +44,9 @@ export function CategoriasPanel({ categorias = [] }: { categorias?: CategoriaPro
 
   useEffect(() => {
     if (state?.success) {
-      toast.success('Categoría creada exitosamente.')
-      // Opcional: limpiar el input
+      toastSuccess(USER_MSG.success.categoriaCreated)
     } else if (state?.error) {
-      toast.error(state.error)
+      toastError('No pudimos crear la categoría', state.error)
     }
   }, [state])
 
