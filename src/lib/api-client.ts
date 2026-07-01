@@ -343,36 +343,24 @@ function multipartFetchHeaders(token: string): Record<string, string> {
 
 type MultipartProxyMethod = 'POST' | 'PUT' | 'PATCH'
 
-async function logInboundMultipart(
+function logInboundMultipartHeaders(
   method: MultipartProxyMethod,
   path: string,
+  request: Request,
   contentType: string,
-  bodyBuffer: Buffer,
-): Promise<void> {
+): void {
   if (process.env.NODE_ENV !== 'development') return
 
-  try {
-    const parsed = await new Request('http://upload.local', {
-      method: 'POST',
-      headers: { 'Content-Type': contentType },
-      body: new Uint8Array(bodyBuffer),
-    }).formData()
-    const file = parsed.get('file')
-    const fileInfo = isNonEmptyBlob(file)
-      ? `${file instanceof File ? file.name : 'blob'} (${file.size} bytes)`
-      : String(file ?? 'ausente')
-    console.log(`[API ${method} proxy] ${path} archivo inbound: ${fileInfo}`)
-    console.log(`[API ${method} proxy] campos: ${[...parsed.keys()].join(', ')}`)
-  } catch (error) {
-    console.warn(`[API ${method} proxy] ${path} no pudo inspeccionar multipart`, error)
-  }
-
-  console.log(`[API ${method} proxy] ${path} reenviando ${bodyBuffer.length} bytes al backend`)
+  const contentLength = request.headers.get('content-length')
+  console.log(
+    `[API ${method} proxy] ${path} Content-Type: ${contentType}; Content-Length: ${contentLength ?? 'chunked'}`,
+  )
 }
 
 /**
- * Reenvía al backend el multipart exacto del navegador (sin reconstruir).
- * Evita que multer pierda el campo `file` al re-serializar en Node.
+ * Proxy multipart navegador → backend (Cloud Run).
+ * Usa el stream original con duplex: 'half' para no corromper el binario del PDF.
+ * El JWT se lee de la cookie httpOnly (el navegador no envía Authorization al proxy).
  */
 export async function proxyMultipartToBackend(
   request: Request,
@@ -396,22 +384,7 @@ export async function proxyMultipartToBackend(
     }
   }
 
-  let bodyBuffer: Buffer
-  try {
-    bodyBuffer = Buffer.from(await request.arrayBuffer())
-  } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error(`[API ${method} proxy] ${path} no pudo leer el body`, error)
-    }
-    return {
-      success: false,
-      error: 'No se pudo leer el formulario enviado.',
-      status: 400,
-      code: 'HTTP_ERROR',
-    }
-  }
-
-  if (bodyBuffer.length === 0) {
+  if (!request.body) {
     return {
       success: false,
       error: 'No se recibió el cuerpo de la solicitud.',
@@ -420,7 +393,7 @@ export async function proxyMultipartToBackend(
     }
   }
 
-  await logInboundMultipart(method, path, contentType, bodyBuffer)
+  logInboundMultipartHeaders(method, path, request, contentType)
 
   try {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
@@ -429,12 +402,12 @@ export async function proxyMultipartToBackend(
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
         'Content-Type': contentType,
-        'Content-Length': String(bodyBuffer.length),
       },
-      body: new Uint8Array(bodyBuffer),
+      body: request.body,
+      duplex: 'half',
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    } as RequestInit)
 
     const data = await parseResponseBody(res)
 

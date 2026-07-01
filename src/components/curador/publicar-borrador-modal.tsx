@@ -9,7 +9,6 @@ import { USER_MSG } from '@/lib/user-messages'
 
 import { publicarBorradorAction } from '@/app/actions/curador-documents'
 import { getDocumentByIdAction } from '@/app/actions/documents'
-import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { readCategoriaIdsFromDocument } from '@/lib/document-categorias'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,20 +40,14 @@ export function PublicarBorradorModal({
 
   const handlePublish = () => {
     startTransition(async () => {
-      const [docRes, metaRes] = await Promise.all([
-        getDocumentByIdAction(documentId),
-        getMetadataByDocumentIdAction(documentId),
-      ])
+      const docRes = await getDocumentByIdAction(documentId)
 
       if (!docRes.success) {
         toastError(USER_MSG.error.loadDocument, docRes.error)
         return
       }
 
-      const documento = {
-        ...(docRes.data ?? {}),
-        ...(metaRes.success ? (metaRes.data ?? {}) : {}),
-      } as Record<string, unknown>
+      const documento = (docRes.data ?? {}) as Record<string, unknown>
       const subcarpetaNormaId = String(documento.subcarpetaNormaId || '').trim()
       const carpetaInternaId = String(documento.carpetaInternaId || '').trim() || undefined
       const categoriaIds = readCategoriaIdsFromDocument(documento)

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { proxyMultipartToBackend } from '@/lib/api-client'
 
+export const runtime = 'nodejs'
+
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function PUT(request: Request, context: RouteContext) {

@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { Pencil } from 'lucide-react'
 
 import { getDocumentByIdAction } from '@/app/actions/documents'
-import { getMetadataByDocumentIdAction } from '@/app/actions/metadatas'
 import { DocumentMetadataCard } from '@/components/curador/correcciones/document-metadata-card'
 import { DocumentPreview } from '@/components/curador/correcciones/document-preview'
 import { CuradorPreviewActions } from '@/components/curador/curador-preview-actions'
@@ -17,22 +16,15 @@ export default async function CuradorDocumentPreviewPage({
 }) {
   const { id } = await params
 
-  const [documentRes, metadataRes] = await Promise.all([
-    getDocumentByIdAction(id),
-    getMetadataByDocumentIdAction(id),
-  ])
+  const documentRes = await getDocumentByIdAction(id)
 
   const docData = documentRes.success ? documentRes.data : null
-  const metadataData = metadataRes.success ? metadataRes.data : null
-  const combinedData = { ...docData, ...metadataData }
 
-  const titulo = String(combinedData?.titulo || combinedData?.nombreBreve || 'Documento sin título')
-  const estado = String(combinedData?.estado || '—')
+  const titulo = String(docData?.titulo || docData?.nombreBreve || 'Documento sin título')
+  const estado = String(docData?.estado || '—')
   const status = mapBackendStatus(estado)
   const canEdit = status === 'borrador' || status === 'en-revision'
-  const lastUpdated = getDocumentTimestamp(
-    combinedData as Record<string, unknown> | null | undefined,
-  )
+  const lastUpdated = getDocumentTimestamp(docData as Record<string, unknown> | null | undefined)
 
   return (
     <div className="min-h-full bg-[#FAFAFA]">
@@ -77,7 +69,7 @@ export default async function CuradorDocumentPreviewPage({
           <DocumentPreview documentId={id} />
         </div>
         <div className="lg:col-span-5 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto lg:pr-1">
-          <DocumentMetadataCard document={combinedData} />
+          <DocumentMetadataCard document={docData} />
         </div>
       </div>
     </div>

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { proxyMultipartToBackend } from '@/lib/api-client'
 
+export const runtime = 'nodejs'
+
 export async function POST(request: Request) {
   const result = await proxyMultipartToBackend(request, '/documentos/borrador', 'POST')
 

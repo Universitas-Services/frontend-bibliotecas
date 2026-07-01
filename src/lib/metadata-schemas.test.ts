@@ -71,4 +71,21 @@ describe('buildDocumentMultipartPayload', () => {
     expect(payload.get('fechaPublicacion')).toBe('2024-06-15')
     expect(payload.getAll('categoriaIds')).toEqual(['3fa85f64-5717-4562-b3fc-2c963f66afa6'])
   })
+
+  it('coloca file al final del FormData (upload, borrador, reforma, editar)', () => {
+    const outbound = new FormData()
+    outbound.set('tituloIntegro', 'Documento test')
+    const file = new File(['pdf'], 'documento.pdf', { type: 'application/pdf' })
+
+    const payload = buildDocumentMultipartPayload({
+      outbound,
+      categorias: ['cat-uuid'],
+      classification: { tipoDocumentoId: 'sub-1' },
+      file,
+    })
+
+    const keys = [...payload.keys()]
+    expect(keys[keys.length - 1]).toBe('file')
+    expect(payload.get('file')).toBeInstanceOf(File)
+  })
 })
