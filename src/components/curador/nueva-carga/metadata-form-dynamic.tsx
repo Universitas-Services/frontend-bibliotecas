@@ -17,10 +17,13 @@ import {
   type MetadataFieldDefinition,
   type MetadataSchema,
 } from '@/lib/metadata-schemas'
+import { needsJurisprudenciaNacionalSubrama } from '@/lib/jurisprudencia-classification'
 import { TerritorialSelectField } from '@/components/curador/nueva-carga/territorial-select-field'
 
 type MetadataFormDynamicProps = {
   schemaKey: string | null
+  tipoDocumentoNombre?: string
+  carpetaPathNames?: string[]
   initialValues?: Record<string, string>
   onChange?: (values: Record<string, string>) => void
 }
@@ -144,10 +147,17 @@ function SchemaFields({
 
 export function MetadataFormDynamic({
   schemaKey,
+  tipoDocumentoNombre = '',
+  carpetaPathNames = [],
   initialValues,
   onChange,
 }: MetadataFormDynamicProps) {
   if (!schemaKey) {
+    const needsNacionalRama = needsJurisprudenciaNacionalSubrama(
+      tipoDocumentoNombre,
+      carpetaPathNames,
+    )
+
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-[#F8FAFC] py-10 text-center">
         <div className="rounded-lg bg-gray-100 p-3">
@@ -155,11 +165,14 @@ export function MetadataFormDynamic({
         </div>
         <div>
           <p className="text-sm font-medium text-gray-600">
-            Complete la clasificación del documento
+            {needsNacionalRama
+              ? 'Seleccione la rama bajo Nacional'
+              : 'Complete la clasificación del documento'}
           </p>
           <p className="mt-1 text-xs text-gray-400">
-            Los metadatos específicos aparecerán cuando seleccione tema, tipo documental y carpeta
-            final.
+            {needsNacionalRama
+              ? 'Elija Tribunal Supremo de Justicia, Cortes Contencioso Administrativas o Tribunales para ver los metadatos.'
+              : 'Los metadatos específicos aparecerán cuando seleccione tema, tipo documental y carpeta final.'}
           </p>
         </div>
       </div>

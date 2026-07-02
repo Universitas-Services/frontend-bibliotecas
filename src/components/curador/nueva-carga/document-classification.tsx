@@ -19,6 +19,13 @@ import {
   type Subcarpeta,
   type CarpetaInterna,
 } from '@/app/actions/temas'
+import {
+  getJurisprudenciaNacionalBranchOptions,
+  isJurisprudenciaDocumentType,
+  isNacionalCarpetaName,
+  isVirtualJurisprudenciaRamaId,
+} from '@/lib/jurisprudencia-classification'
+import { resolveMetadataSchemaKey } from '@/lib/metadata-schemas'
 import { getTipoNormaDisplayName } from '@/lib/temas-taxonomy'
 
 export interface ClassificationValues {
@@ -141,6 +148,16 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
     const newLevels = carpetaLevels.slice(0, levelIndex + 1)
     newLevels[levelIndex] = { ...newLevels[levelIndex], selectedId: carpetaId }
 
+    const tipoDocObj = tiposDocumento.find((td) => td.id === selectedTipoDoc)
+    const tipoDocumentoNombre = tipoDocObj?.tipoNorma ?? ''
+
+    if (isVirtualJurisprudenciaRamaId(carpetaId)) {
+      const parentCarpetaId = newLevels[levelIndex - 1]?.selectedId ?? ''
+      setCarpetaLevels(newLevels)
+      setLeafCarpetaId(parentCarpetaId)
+      return
+    }
+
     setCarpetaLevels([...newLevels, { options: [], selectedId: '', loading: true }])
     setLeafCarpetaId('')
 
@@ -154,10 +171,23 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
 
       if (hijos.length > 0) {
         setCarpetaLevels([...newLevels, { options: hijos, selectedId: '', loading: false }])
-      } else {
-        setCarpetaLevels(newLevels)
-        setLeafCarpetaId(carpetaId)
+        return
       }
+
+      const selectedLabel = selectedCarpeta ? getCarpetaLabel(selectedCarpeta) : ''
+      if (
+        isJurisprudenciaDocumentType(tipoDocumentoNombre) &&
+        isNacionalCarpetaName(selectedLabel)
+      ) {
+        setCarpetaLevels([
+          ...newLevels,
+          { options: getJurisprudenciaNacionalBranchOptions(), selectedId: '', loading: false },
+        ])
+        return
+      }
+
+      setCarpetaLevels(newLevels)
+      setLeafCarpetaId(carpetaId)
     } catch (error) {
       console.error('Error al cargar hijos de carpeta:', error)
       setCarpetaLevels(newLevels)
@@ -187,6 +217,17 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTema, selectedTipoDoc, carpetaLevels, leafCarpetaId, temas, tiposDocumento])
 
+  const tipoDocObj = tiposDocumento.find((td) => td.id === selectedTipoDoc)
+  const pathNamesPreview: string[] = []
+  for (const level of carpetaLevels) {
+    if (!level.selectedId) continue
+    const match = level.options.find((opt) => opt.id === level.selectedId)
+    if (match) pathNamesPreview.push(getCarpetaLabel(match))
+  }
+  const schemaKeyPreview = tipoDocObj
+    ? resolveMetadataSchemaKey(tipoDocObj.tipoNorma, pathNamesPreview)
+    : null
+
   const getStepStatus = (step: 1 | 2 | 3) => {
     if (step === 1) return selectedTema ? 'completed' : 'active'
     if (step === 2) {
@@ -194,7 +235,7 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
       return selectedTipoDoc ? 'completed' : 'active'
     }
     if (!selectedTipoDoc) return 'pending'
-    return leafCarpetaId ? 'completed' : 'active'
+    return leafCarpetaId && schemaKeyPreview ? 'completed' : 'active'
   }
 
   return (
@@ -216,7 +257,7 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
           <span className="ml-1 text-red-500">*</span>
         </label>
         <Select
-          value={selectedTema || undefined}
+          value={selectedTema}
           onValueChange={(val) => {
             const newVal = val === 'none' ? '' : val
             setSelectedTema(newVal)
@@ -258,7 +299,7 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
           <span className="ml-1 text-red-500">*</span>
         </label>
         <Select
-          value={selectedTipoDoc || undefined}
+          value={selectedTipoDoc}
           onValueChange={handleTipoDocChange}
           disabled={!selectedTema || loadingTiposDoc}
         >
@@ -294,7 +335,7 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
             <span className="ml-1 text-red-500">*</span>
           </label>
           <Select
-            value={level.selectedId || undefined}
+            value={level.selectedId}
             onValueChange={(val) => handleCarpetaLevelChange(index, val)}
             disabled={level.loading || level.options.length === 0}
           >
@@ -331,10 +372,14 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
         </div>
       ))}
 
-      {leafCarpetaId ? (
+      {leafCarpetaId && schemaKeyPreview ? (
         <p className="text-xs text-green-700">
           Clasificación completa — nivel final seleccionado
           {carpetaLevels.length > 1 ? ` (${carpetaLevels.length} niveles)` : ''}.
+        </p>
+      ) : leafCarpetaId && !schemaKeyPreview ? (
+        <p className="text-xs text-amber-700">
+          Falta un subnivel de clasificación para mostrar los metadatos específicos.
         </p>
       ) : selectedTipoDoc && carpetaLevels.length > 0 ? (
         <p className="text-xs text-gray-500">
