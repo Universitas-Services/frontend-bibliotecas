@@ -60,10 +60,11 @@ export const TRIBUNALES_JURISPRUDENCIA = [
 ] as const
 
 export const SALAS_TSJ = [
-  'Sala Político Administrativa',
   'Sala Constitucional',
+  'Sala Político-Administrativa',
   'Sala Electoral',
   'Sala de Casación Civil',
   'Sala de Casación Penal',
   'Sala de Casación Social',
+  'Sala Plena',
 ] as const

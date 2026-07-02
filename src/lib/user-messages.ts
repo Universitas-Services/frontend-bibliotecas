@@ -32,6 +32,7 @@ export const USER_MSG = {
     categorias: 'Asigne al menos una categoría antes de continuar.',
     loginCredentials: 'Ingrese su correo y contraseña.',
     uploadFile: 'Seleccione un archivo para cargar.',
+    fileTooLarge: 'El archivo supera el límite de 32 MB permitido por el servidor.',
   },
   preview: {
     title: 'No pudimos mostrar el documento',
@@ -74,6 +75,8 @@ export const USER_MSG = {
     saveDocument: 'No pudimos guardar el documento.',
     saveDraft: 'No pudimos guardar el borrador.',
     uploadDocument: 'No pudimos cargar el documento al servidor.',
+    uploadCorsOrNetwork:
+      'No pudimos enviar el archivo al servidor. Compruebe su conexión o contacte al administrador si el problema continúa.',
     deleteDocument: 'No pudimos eliminar el documento.',
     publishDocument: 'No pudimos publicar el documento.',
     approveDocument: 'No pudimos aprobar el documento.',

@@ -525,6 +525,8 @@ export default function NuevaCargaPage() {
               <MetadataFormDynamic
                 key={schemaKey || 'pending-schema'}
                 schemaKey={schemaKey}
+                tipoDocumentoNombre={classification.tipoDocumentoNombre}
+                carpetaPathNames={classification.carpetaPathNames}
                 initialValues={metadatosValues}
                 onChange={setMetadatosValues}
               />

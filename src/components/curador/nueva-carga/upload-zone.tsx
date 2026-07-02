@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { CloudUpload, FileText } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { getUploadSizeErrorMessage, isWithinUploadLimit, MAX_UPLOAD_MB } from '@/lib/upload-limits'
 
 type UploadZoneProps = {
   disabled?: boolean
@@ -13,6 +15,14 @@ type UploadZoneProps = {
   initialFileName?: string
   initialGacetaFileName?: string
   initialOcr?: boolean
+}
+
+function validateFileSize(file: File, label: string): boolean {
+  if (isWithinUploadLimit(file.size)) return true
+  toast.error(getUploadSizeErrorMessage(file.size), {
+    description: `${label}: el límite del servidor es ${MAX_UPLOAD_MB} MB.`,
+  })
+  return false
 }
 
 export function UploadZone({
@@ -31,6 +41,10 @@ export function UploadZone({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (!validateFileSize(file, 'Documento principal')) {
+        e.target.value = ''
+        return
+      }
       setFileName(file.name)
       setFileSize((file.size / (1024 * 1024)).toFixed(2) + ' MB')
       onFileSelected(file)
@@ -44,6 +58,10 @@ export function UploadZone({
   const handleGacetaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (!validateFileSize(file, 'Gaceta oficial')) {
+        e.target.value = ''
+        return
+      }
       setGacetaFileName(file.name)
       onGacetaSelected?.(file)
       return
@@ -75,7 +93,7 @@ export function UploadZone({
               : 'Arrastra el documento principal aquí o haz clic'}
         </h3>
         <p className="mb-6 text-sm text-gray-500">
-          {fileName ? 'Documento listo para subir' : 'PDF, DOC — Máx. 50MB'}
+          {fileName ? 'Documento listo para subir' : `PDF, DOC — Máx. ${MAX_UPLOAD_MB} MB`}
         </p>
         <div className="flex items-center gap-4">
           <Button
@@ -104,7 +122,9 @@ export function UploadZone({
             ? gacetaFileName || initialGacetaFileName
             : 'Gaceta Oficial (opcional)'}
         </h3>
-        <p className="text-xs text-gray-500">PDF de la Gaceta asociada al documento</p>
+        <p className="text-xs text-gray-500">
+          PDF de la Gaceta asociada al documento (máx. {MAX_UPLOAD_MB} MB)
+        </p>
       </label>
 
       <input type="hidden" name="ocrHabilitado" value={ocrEnabled ? 'true' : 'false'} />

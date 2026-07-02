@@ -170,7 +170,7 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
   },
   'jurisprudencia-tsj': {
     key: 'jurisprudencia-tsj',
-    label: 'Jurisprudencia — TSJ',
+    label: 'Jurisprudencia — Tribunal Supremo de Justicia',
     fields: [
       {
         key: 'sala',
@@ -200,19 +200,40 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
   },
   'jurisprudencia-contencioso': {
     key: 'jurisprudencia-contencioso',
-    label: 'Jurisprudencia — Contencioso Administrativo',
+    label: 'Jurisprudencia — Cortes Contencioso Administrativas',
+    fields: [
+      { key: 'numeroSentencia', label: 'N° de sentencia', type: 'text', required: true },
+      { key: 'numeroExpediente', label: 'N° de expediente', type: 'text', required: true },
+      { key: 'fechaSentencia', label: 'Fecha de sentencia', type: 'date', required: true },
+      { key: 'juezPonente', label: 'Juez ponente', type: 'text', required: true },
+      { key: 'partes', label: 'Partes', type: 'text', required: false },
+      {
+        key: 'decision',
+        label: 'Decisión',
+        type: 'select',
+        required: true,
+        options: [
+          { value: 'Con lugar', label: 'Con lugar' },
+          { value: 'Sin lugar', label: 'Sin lugar' },
+        ],
+      },
+    ],
+  },
+  'jurisprudencia-tribunales': {
+    key: 'jurisprudencia-tribunales',
+    label: 'Jurisprudencia — Tribunales',
     fields: [
       {
         key: 'estado',
         label: 'Estado',
         type: 'select',
-        required: false,
+        required: true,
         optionSource: 'global-estado',
         companionIdKey: 'estadoId',
       },
       {
         key: 'municipio',
-        label: 'Municipio',
+        label: 'Municipio (cuando aplique)',
         type: 'select',
         required: false,
         dependsOn: 'estado',
@@ -439,7 +460,9 @@ export function resolveMetadataSchemaKey(
   if (tipo.includes('jurisprudencia')) {
     if (has('internacional')) return 'jurisprudencia-internacional'
     if (has('supremo') || has('tsj')) return 'jurisprudencia-tsj'
-    return 'jurisprudencia-contencioso'
+    if (has('contencioso')) return 'jurisprudencia-contencioso'
+    if (has('tribunal')) return 'jurisprudencia-tribunales'
+    return null
   }
 
   if (tipo.includes('doctrina administrativa')) return 'doctrina-administrativa'

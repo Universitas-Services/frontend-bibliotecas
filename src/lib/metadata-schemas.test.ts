@@ -33,6 +33,51 @@ describe('metadata-schemas', () => {
     )
   })
 
+  it('resuelve esquemas de jurisprudencia segun la clasificacion', () => {
+    expect(
+      resolveMetadataSchemaKey('Jurisprudencia', ['Nacional', 'Tribunal Supremo de Justicia']),
+    ).toBe('jurisprudencia-tsj')
+    expect(
+      resolveMetadataSchemaKey('Jurisprudencia', [
+        'Nacional',
+        'Cortes Contencioso Administrativas',
+      ]),
+    ).toBe('jurisprudencia-contencioso')
+    expect(resolveMetadataSchemaKey('Jurisprudencia', ['Nacional', 'Tribunales'])).toBe(
+      'jurisprudencia-tribunales',
+    )
+    expect(resolveMetadataSchemaKey('Jurisprudencia', ['Internacional'])).toBe(
+      'jurisprudencia-internacional',
+    )
+  })
+
+  it('cascada tribunales: estado, municipio opcional y tribunal', () => {
+    const schema = METADATA_SCHEMAS['jurisprudencia-tribunales']
+    expect(schema.fields.slice(0, 3).map((field) => field.key)).toEqual([
+      'estado',
+      'municipio',
+      'tribunal',
+    ])
+    expect(schema.fields.find((field) => field.key === 'municipio')?.required).toBe(false)
+    expect(schema.fields.find((field) => field.key === 'tribunal')?.optionSource).toBe(
+      'global-tribunal',
+    )
+  })
+
+  it('tsj incluye las siete salas del diagrama', () => {
+    const schema = METADATA_SCHEMAS['jurisprudencia-tsj']
+    const salaField = schema.fields.find((field) => field.key === 'sala')
+    expect(salaField?.options?.map((option) => option.value)).toEqual([
+      'Sala Constitucional',
+      'Sala Político-Administrativa',
+      'Sala Electoral',
+      'Sala de Casación Civil',
+      'Sala de Casación Penal',
+      'Sala de Casación Social',
+      'Sala Plena',
+    ])
+  })
+
   it('persiste pares id+nombre en metadatos territoriales', () => {
     const result = buildMetadatosFromForm('legislacion-municipal', {
       estado: 'Miranda',
