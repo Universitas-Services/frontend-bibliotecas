@@ -1,6 +1,15 @@
 'use server'
 
-import { apiGet, apiPost, normalizeDocumentsList, type ApiErrorCode } from '@/lib/api-client'
+import { revalidatePath } from 'next/cache'
+
+import {
+  apiDelete,
+  apiGet,
+  apiPost,
+  normalizeDocumentsList,
+  type ApiErrorCode,
+} from '@/lib/api-client'
+import { USER_MSG } from '@/lib/user-messages'
 
 export type AdminDocumentsFilters = {
   curadorId?: string
@@ -217,4 +226,64 @@ export async function rechazarDocumentoAction(id: string, payload: RechazarDocum
   }
 
   return { success: true as const, data: result.data }
+}
+
+export type HardDeleteDocumentResult =
+  | { success: true; message: string }
+  | { success: false; error: string; status?: number; code?: ApiErrorCode }
+
+export async function hardDeleteDocumentAction(
+  documentId: string,
+): Promise<HardDeleteDocumentResult> {
+  const id = documentId.trim()
+
+  if (!id) {
+    return {
+      success: false,
+      error: 'El identificador del documento no es válido.',
+      status: 400,
+      code: 'HTTP_ERROR',
+    }
+  }
+
+  const result = await apiDelete(`/documentos/admin/${encodeURIComponent(id)}/hard-delete`)
+
+  if (!result.success) {
+    if (result.status === 403) {
+      return {
+        success: false,
+        error: USER_MSG.error.hardDeleteForbidden,
+        status: result.status,
+        code: result.code,
+      }
+    }
+
+    if (result.status === 404) {
+      return {
+        success: false,
+        error: 'El documento ya no existe o el identificador no es válido.',
+        status: result.status,
+        code: result.code,
+      }
+    }
+
+    return {
+      success: false,
+      error: result.error || USER_MSG.error.hardDeleteDocument,
+      status: result.status,
+      code: result.code,
+    }
+  }
+
+  revalidatePath('/admin/gestion-documental')
+
+  const data = result.data
+  const message =
+    data &&
+    typeof data === 'object' &&
+    typeof (data as Record<string, unknown>).message === 'string'
+      ? String((data as Record<string, unknown>).message)
+      : USER_MSG.success.documentHardDeleted
+
+  return { success: true, message }
 }

@@ -69,6 +69,36 @@ export type ChangePasswordState = {
   sessionExpired?: boolean
 }
 
+export type ForgotPasswordState = {
+  success?: boolean
+  error?: string
+  message?: string
+}
+
+export type ResetPasswordState = {
+  success?: boolean
+  error?: string
+  message?: string
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function mapResetPasswordError(status: number, data: Record<string, unknown>): string {
+  const message = typeof data.message === 'string' ? data.message : ''
+
+  switch (status) {
+    case 401:
+    case 400:
+      return 'El enlace expiró o no es válido. Solicite un nuevo correo de recuperación.'
+    case 422:
+      return 'La nueva contraseña no cumple los requisitos de seguridad.'
+    default:
+      return message || 'No se pudo restablecer la contraseña. Intente nuevamente.'
+  }
+}
+
 export async function loginAction(prevState: unknown, formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
@@ -248,5 +278,101 @@ export async function changePasswordAction(
 
     console.error('Change password error:', error)
     return { error: 'Ocurrió un error al actualizar la contraseña. Revise su conexión.' }
+  }
+}
+
+export async function forgotPasswordAction(
+  _prevState: ForgotPasswordState | null,
+  formData: FormData,
+): Promise<ForgotPasswordState> {
+  const email = String(formData.get('email') ?? '').trim()
+
+  if (!email) {
+    return { error: 'Ingrese su correo electrónico institucional.' }
+  }
+
+  if (!isValidEmail(email)) {
+    return { error: 'Ingrese un correo electrónico válido.' }
+  }
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    })
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+
+    if (!res.ok) {
+      return {
+        error: toUserFacingMessage(
+          typeof data.message === 'string' ? data.message : undefined,
+          'No pudimos procesar su solicitud. Intente nuevamente.',
+        ),
+      }
+    }
+
+    return {
+      success: true,
+      message:
+        typeof data.message === 'string'
+          ? data.message
+          : 'Si el correo está registrado, recibirá un enlace para restablecer su contraseña en los próximos minutos.',
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error)
+    return { error: USER_MSG.common.connection }
+  }
+}
+
+export async function resetPasswordAction(
+  _prevState: ResetPasswordState | null,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  const token = String(formData.get('token') ?? '').trim()
+  const newPassword = String(formData.get('newPassword') ?? '')
+  const confirmPassword = String(formData.get('confirmPassword') ?? '')
+
+  if (!token) {
+    return { error: 'El enlace de recuperación no es válido. Solicite uno nuevo.' }
+  }
+
+  const newPasswordError = validateNewPassword(newPassword)
+  if (newPasswordError) {
+    return { error: newPasswordError }
+  }
+
+  const confirmError = validatePasswordConfirmation(newPassword, confirmPassword)
+  if (confirmError) {
+    return { error: confirmError }
+  }
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ newPassword }),
+    })
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+
+    if (!res.ok) {
+      return { error: mapResetPasswordError(res.status, data) }
+    }
+
+    return {
+      success: true,
+      message:
+        typeof data.message === 'string' ? data.message : 'Contraseña actualizada exitosamente.',
+    }
+  } catch (error) {
+    console.error('Reset password error:', error)
+    return { error: USER_MSG.common.connection }
   }
 }

@@ -1,14 +1,14 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { loginAction } from '@/app/actions/auth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { toastError } from '@/lib/toast-messages'
 import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
-import { useEffect } from 'react'
 
 const initialState = {
   error: null as string | null,
@@ -18,6 +18,7 @@ export function LoginForm() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
   const [state, formAction, isPending] = useActionState(loginAction, initialState)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     if (state?.error) {
@@ -87,12 +88,20 @@ export function LoginForm() {
               <Input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 placeholder="••••••••"
                 required
-                className="h-12 border-none bg-[#050810] pl-11 text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-[#005496]"
+                className="h-12 border-none bg-[#050810] pr-10 pl-11 text-white placeholder:text-gray-500 focus-visible:ring-1 focus-visible:ring-[#005496]"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-white"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
@@ -106,15 +115,18 @@ export function LoginForm() {
           </Button>
 
           <div className="mt-6 space-y-2 text-center">
-            <a href="#" className="block text-sm text-[#C1C7D2] transition-colors hover:text-white">
+            <Link
+              href="/auth/forgot-password"
+              className="block text-sm text-[#C1C7D2] transition-colors hover:text-white"
+            >
               ¿Olvidaste tu contraseña?
-            </a>
-            <a
+            </Link>
+            <Link
               href="/login?logout=1"
               className="block text-sm text-[#C1C7D2] transition-colors hover:text-white"
             >
               Cerrar sesión e iniciar con otra cuenta
-            </a>
+            </Link>
           </div>
         </form>
       </div>
