@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { toastError, toastSuccess } from '@/lib/toast-messages'
 import { USER_MSG } from '@/lib/user-messages'
 
@@ -121,11 +122,10 @@ export function CreateUserForm({ temas }: CreateUserFormProps) {
           value={email}
           onChange={setEmail}
         />
-        <FormField
+        <PasswordFormField
           id="password"
           label="Contraseña temporal"
           hint="Validación: Mínimo 8 caracteres, debe incluir una mayúscula y un carácter especial Ejemplo: A123456*"
-          type="password"
           value={password}
           onChange={setPassword}
         />
@@ -225,6 +225,50 @@ function FormField({
         onChange={(e) => onChange(e.target.value)}
         className="h-11 border-gray-300"
       />
+    </div>
+  )
+}
+
+function PasswordFormField({
+  id,
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  id: string
+  label: string
+  hint?: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [showPassword, setShowPassword] = useState(false)
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-sm font-bold text-[#00315C]">
+        {label}
+      </Label>
+      {hint ? <p className="text-xs text-gray-500 italic">{hint}</p> : null}
+      <div className="relative">
+        <Input
+          id={id}
+          name={id}
+          type={showPassword ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-11 border-gray-300 pr-10"
+          autoComplete="new-password"
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword((current) => !current)}
+          className="absolute top-1/2 right-3 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        >
+          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
     </div>
   )
 }

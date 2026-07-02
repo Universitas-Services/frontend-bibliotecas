@@ -6,6 +6,8 @@ import { isMustChangePasswordActive, MUST_CHANGE_PASSWORD_COOKIE } from '@/lib/a
 import { isPathAllowedForRole, isProtectedPath } from '@/lib/route-guards'
 
 const CHANGE_PASSWORD_PATH = '/auth/change-password'
+const FORGOT_PASSWORD_PATH = '/auth/forgot-password'
+const RESET_PASSWORD_PATH = '/auth/reset-password'
 
 function redirectToLogin(request: NextRequest, pathname: string, clearToken: boolean) {
   const loginUrl = new URL('/login', request.url)
@@ -38,6 +40,10 @@ export function middleware(request: NextRequest) {
     if (!token) {
       return redirectToLogin(request, pathname, tokenExpired)
     }
+    return NextResponse.next()
+  }
+
+  if (pathname === FORGOT_PASSWORD_PATH || pathname === RESET_PASSWORD_PATH) {
     return NextResponse.next()
   }
 

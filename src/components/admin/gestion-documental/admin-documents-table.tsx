@@ -125,16 +125,16 @@ export function AdminDocumentsTable({
                 key={doc.id}
                 className="overflow-hidden rounded-xl border border-[#C1C7D2] bg-white shadow-sm transition-all hover:shadow-md"
               >
-                <div className="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center">
-                  <div className="flex flex-1 items-start gap-4">
+                <div className="grid gap-4 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                  <div className="flex min-w-0 items-start gap-4">
                     <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#E5E7FF]">
                       <Icon className="h-5 w-5 text-[#005496]" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-[15px] font-bold text-[#0F1D30]">
-                          {doc.titulo}
-                        </h3>
+                      <h3 className="line-clamp-2 text-[15px] leading-snug font-bold text-[#0F1D30]">
+                        {doc.titulo}
+                      </h3>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${styles.tableStatusColor}`}
                         >
@@ -146,7 +146,7 @@ export function AdminDocumentsTable({
                           </span>
                         )}
                       </div>
-                      <p className="text-[13px] text-[#6B7280]">
+                      <p className="mt-1 text-[13px] text-[#6B7280]">
                         {doc.curadorNombre || 'Curador no asignado'}
                         {doc.curadorEmail ? ` · ${doc.curadorEmail}` : ''}
                         {doc.tema ? ` · ${doc.tema}` : ''}
@@ -159,7 +159,10 @@ export function AdminDocumentsTable({
                     </div>
                   </div>
 
-                  <Button asChild className="shrink-0 bg-[#005496] hover:bg-[#00315C]">
+                  <Button
+                    asChild
+                    className="w-full shrink-0 bg-[#005496] hover:bg-[#00315C] md:w-auto md:justify-self-end"
+                  >
                     <Link href={`/admin/gestion-documental/${doc.id}`}>Revisar documento</Link>
                   </Button>
                 </div>

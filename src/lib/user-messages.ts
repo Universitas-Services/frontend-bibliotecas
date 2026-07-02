@@ -48,6 +48,7 @@ export const USER_MSG = {
     draftSaved: 'Borrador guardado correctamente.',
     draftPublished: 'Borrador enviado a revisión correctamente.',
     documentDeleted: 'Documento eliminado correctamente.',
+    documentHardDeleted: 'Documento eliminado permanentemente.',
     documentApproved: 'Documento aprobado y publicado correctamente.',
     documentRejected: 'Documento devuelto al curador con la nota de corrección.',
     documentRejectedRevisor: 'Documento rechazado. El curador recibirá sus observaciones.',
@@ -78,6 +79,8 @@ export const USER_MSG = {
     uploadCorsOrNetwork:
       'No pudimos enviar el archivo al servidor. Compruebe su conexión o contacte al administrador si el problema continúa.',
     deleteDocument: 'No pudimos eliminar el documento.',
+    hardDeleteDocument: 'No pudimos eliminar el documento de forma permanente.',
+    hardDeleteForbidden: 'Solo un administrador puede eliminar documentos de forma permanente.',
     publishDocument: 'No pudimos publicar el documento.',
     approveDocument: 'No pudimos aprobar el documento.',
     rejectDocument: 'No pudimos rechazar el documento.',

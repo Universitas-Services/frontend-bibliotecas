@@ -21,7 +21,7 @@ test.describe('Route protection', () => {
     await expect(page).toHaveURL(/\/login/)
     await expect(page.getByRole('heading', { name: 'Acceso Institucional' })).toBeVisible()
     await expect(page.getByLabel('Email Institucional')).toBeVisible()
-    await expect(page.getByLabel('Contraseña')).toBeVisible()
+    await expect(page.getByLabel('Contraseña', { exact: true })).toBeVisible()
 
     const cookies = await context.cookies()
     expect(cookies.some((c) => c.name === 'access_token')).toBe(false)

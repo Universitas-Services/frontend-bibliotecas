@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { getDocumentByIdAction } from '@/app/actions/documents'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
 import { AdminApprovePanel } from '@/components/admin/gestion-documental/admin-approve-panel'
+import { AdminHardDeleteDialog } from '@/components/admin/gestion-documental/admin-hard-delete-dialog'
 import { AdminNotasPanel } from '@/components/admin/gestion-documental/admin-notas-panel'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
 import { DocumentMetadataCard } from '@/components/curador/correcciones/document-metadata-card'
@@ -139,6 +140,10 @@ export default async function AdminDocumentReviewPage({ params }: PageProps) {
                 <RevisionHistory notas={notas} />
               </TabsContent>
             </Tabs>
+
+            <div className="mt-8">
+              <AdminHardDeleteDialog documentId={id} documentTitle={titulo} />
+            </div>
           </div>
         </div>
       </div>
