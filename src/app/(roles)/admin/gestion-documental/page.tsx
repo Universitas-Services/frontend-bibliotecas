@@ -3,9 +3,11 @@ import { Suspense } from 'react'
 import { getAdminDocumentsAction } from '@/app/actions/admin-documents'
 import { listUsersAction } from '@/app/actions/users'
 import { AdminDocumentsTable } from '@/components/admin/gestion-documental/admin-documents-table'
+import type { DocumentFilterId } from '@/lib/document-status'
 
 type PageProps = {
   searchParams: Promise<{
+    estado?: string
     curadorId?: string
     conNotas?: string
     page?: string
@@ -13,15 +15,22 @@ type PageProps = {
   }>
 }
 
+const VALID_ESTADOS: DocumentFilterId[] = ['todos', 'publicados', 'en-revision']
+
 export default async function AdminGestionDocumentalPage({ searchParams }: PageProps) {
   const params = await searchParams
+  const estadoParam = params.estado
+  const estado: DocumentFilterId =
+    estadoParam && VALID_ESTADOS.includes(estadoParam as DocumentFilterId)
+      ? (estadoParam as DocumentFilterId)
+      : 'en-revision'
   const curadorId = params.curadorId || undefined
   const conNotas = params.conNotas === 'true'
   const page = Math.max(1, Number(params.page) || 1)
   const limit = Math.max(1, Math.min(50, Number(params.limit) || 10))
 
   const [documentsRes, curadoresRes] = await Promise.all([
-    getAdminDocumentsAction({ curadorId, conNotas, page, limit }),
+    getAdminDocumentsAction({ estado, curadorId, conNotas, page, limit }),
     listUsersAction({ role: 'CURADOR', limit: 100 }),
   ])
 
@@ -45,7 +54,7 @@ export default async function AdminGestionDocumentalPage({ searchParams }: PageP
         }))
       : []
 
-  const { documents, total, page: currentPage, totalPages } = documentsRes.data
+  const { documents, total, page: currentPage, limit: currentLimit, totalPages } = documentsRes.data
 
   return (
     <div className="mx-auto max-w-6xl p-6 pt-10 lg:p-8">
@@ -60,9 +69,11 @@ export default async function AdminGestionDocumentalPage({ searchParams }: PageP
         <AdminDocumentsTable
           documents={documents}
           curadores={curadores}
+          selectedEstado={estado}
           selectedCuradorId={curadorId}
           conNotas={conNotas}
           page={currentPage}
+          limit={currentLimit}
           totalPages={totalPages}
           total={total}
         />

@@ -9,9 +9,12 @@ import {
   normalizeDocumentsList,
   type ApiErrorCode,
 } from '@/lib/api-client'
+import { buildAdminListPath } from '@/lib/admin-list-query'
+import type { DocumentFilterId } from '@/lib/document-status'
 import { USER_MSG } from '@/lib/user-messages'
 
 export type AdminDocumentsFilters = {
+  estado?: DocumentFilterId
   curadorId?: string
   conNotas?: boolean
   page?: number
@@ -39,12 +42,62 @@ export type PaginatedAdminDocuments = {
 
 function normalizeAdminDocument(data: Record<string, unknown>): AdminDocumentItem {
   const curador = data.curador as Record<string, unknown> | undefined
+  const countMeta = data._count as Record<string, unknown> | undefined
+
+  let tema: string | undefined
+  if (typeof data.tema === 'string' && data.tema.trim()) {
+    tema = data.tema
+  } else if (typeof data.temaPrincipal === 'string' && data.temaPrincipal.trim()) {
+    tema = data.temaPrincipal
+  } else if (Array.isArray(data.categorias)) {
+    const nombres = data.categorias
+      .map((item) =>
+        item && typeof item === 'object'
+          ? String((item as Record<string, unknown>).nombre || '').trim()
+          : '',
+      )
+      .filter(Boolean)
+    if (nombres.length > 0) tema = nombres.join(', ')
+  }
+
+  const subcarpeta = data.subcarpetaNorma as Record<string, unknown> | undefined
+  const temaPrincipal = subcarpeta?.temaPrincipal as Record<string, unknown> | undefined
+  if (!tema && temaPrincipal && typeof temaPrincipal.nombre === 'string') {
+    tema = temaPrincipal.nombre
+  }
+
+  let ultimaNota: string | undefined
+  if (typeof data.ultimaNota === 'string' && data.ultimaNota.trim()) {
+    ultimaNota = data.ultimaNota
+  } else if (typeof data.previewUltimaNota === 'string' && data.previewUltimaNota.trim()) {
+    ultimaNota = data.previewUltimaNota
+  } else if (Array.isArray(data.notasInternas) && data.notasInternas.length > 0) {
+    const nota = data.notasInternas[0] as Record<string, unknown>
+    for (const key of ['contenido', 'texto', 'mensaje', 'preview', 'descripcion']) {
+      const value = nota[key]
+      if (typeof value === 'string' && value.trim()) {
+        ultimaNota = value.trim()
+        break
+      }
+    }
+  }
+
+  const notasCount =
+    typeof countMeta?.notasInternas === 'number'
+      ? countMeta.notasInternas
+      : typeof data.notasCount === 'number'
+        ? data.notasCount
+        : typeof data.numNotas === 'number'
+          ? data.numNotas
+          : Array.isArray(data.notasInternas)
+            ? data.notasInternas.length
+            : 0
 
   return {
     id: String(data.id || data._id || ''),
     titulo: String(data.titulo || data.tituloIntegro || 'Documento sin título'),
     curadorNombre: curador
-      ? String(curador.nombre || `${curador.nombre || ''} ${curador.apellido || ''}`.trim())
+      ? `${String(curador.nombre || '')} ${String(curador.apellido || '')}`.trim()
       : typeof data.curadorNombre === 'string'
         ? data.curadorNombre
         : undefined,
@@ -53,25 +106,10 @@ function normalizeAdminDocument(data: Record<string, unknown>): AdminDocumentIte
       : typeof data.curadorEmail === 'string'
         ? data.curadorEmail
         : undefined,
-    tema:
-      typeof data.tema === 'string'
-        ? data.tema
-        : typeof data.temaPrincipal === 'string'
-          ? data.temaPrincipal
-          : undefined,
+    tema,
     estado: String(data.estado || '—'),
-    notasCount:
-      typeof data.notasCount === 'number'
-        ? data.notasCount
-        : typeof data.numNotas === 'number'
-          ? data.numNotas
-          : 0,
-    ultimaNota:
-      typeof data.ultimaNota === 'string'
-        ? data.ultimaNota
-        : typeof data.previewUltimaNota === 'string'
-          ? data.previewUltimaNota
-          : undefined,
+    notasCount,
+    ultimaNota,
   }
 }
 
@@ -103,13 +141,17 @@ function normalizePaginatedAdminResponse(
         : typeof record.size === 'number'
           ? record.size
           : fallbackLimit
+    const totalPages =
+      typeof record.totalPages === 'number'
+        ? record.totalPages
+        : Math.max(1, Math.ceil(total / Math.max(limit, 1)))
 
     return {
       documents,
       total,
       page,
       limit,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
+      totalPages,
     }
   }
 
@@ -131,13 +173,7 @@ export async function getAdminDocumentsAction(
 ): Promise<GetAdminDocumentsResult> {
   const page = filters.page ?? 1
   const limit = filters.limit ?? 10
-  const params = new URLSearchParams()
-
-  if (filters.curadorId) params.set('curadorId', filters.curadorId)
-  if (filters.conNotas) params.set('conNotas', 'true')
-
-  const query = params.toString()
-  const path = `/documentos/admin/list${query ? `?${query}` : ''}`
+  const path = buildAdminListPath({ ...filters, page, limit })
   const result = await apiGet(path)
 
   if (!result.success) {
@@ -150,19 +186,9 @@ export async function getAdminDocumentsAction(
     }
   }
 
-  const allData = normalizePaginatedAdminResponse(result.data, page, limit)
-  const start = (page - 1) * limit
-  const paginatedDocuments = allData.documents.slice(start, start + limit)
-
   return {
     success: true,
-    data: {
-      documents: paginatedDocuments,
-      total: allData.documents.length,
-      page,
-      limit,
-      totalPages: Math.max(1, Math.ceil(allData.documents.length / limit)),
-    },
+    data: normalizePaginatedAdminResponse(result.data, page, limit),
     status: result.status,
   }
 }

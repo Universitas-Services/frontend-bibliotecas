@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { FileText, ClipboardList, FileCheck, AlertTriangle } from 'lucide-react'
 
 import type { AdminDocumentItem } from '@/app/actions/admin-documents'
+import { DocumentPagination } from '@/components/curador/gestion-documental/document-pagination'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
@@ -17,6 +18,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { mapBackendStatus, DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
+import type { DocumentFilterId } from '@/lib/document-status'
+
+const ADMIN_DOCUMENT_FILTER_TABS: { id: DocumentFilterId; label: string }[] = [
+  { id: 'todos', label: 'Todos' },
+  { id: 'publicados', label: 'Publicados' },
+  { id: 'en-revision', label: 'En Revisión' },
+]
 
 type CuradorOption = {
   id: string
@@ -27,9 +35,11 @@ type CuradorOption = {
 type AdminDocumentsTableProps = {
   documents: AdminDocumentItem[]
   curadores: CuradorOption[]
+  selectedEstado: DocumentFilterId
   selectedCuradorId?: string
   conNotas: boolean
   page: number
+  limit: number
   totalPages: number
   total: number
 }
@@ -44,9 +54,11 @@ const STATUS_ICONS = {
 export function AdminDocumentsTable({
   documents,
   curadores,
+  selectedEstado,
   selectedCuradorId,
   conNotas,
   page,
+  limit,
   totalPages,
   total,
 }: AdminDocumentsTableProps) {
@@ -70,15 +82,39 @@ export function AdminDocumentsTable({
     })
   }
 
+  const handleEstadoChange = (estado: DocumentFilterId) => {
+    updateFilters({
+      estado: estado === 'en-revision' ? null : estado,
+      page: null,
+    })
+  }
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {ADMIN_DOCUMENT_FILTER_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => handleEstadoChange(tab.id)}
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-bold whitespace-nowrap transition-colors ${
+              selectedEstado === tab.id
+                ? 'bg-[#0F1D30] text-white'
+                : 'bg-transparent text-[#404551] hover:bg-[#F3F4F6]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-end gap-6 rounded-lg border bg-white p-4 shadow-sm">
         <div className="space-y-2">
           <Label className="text-sm font-semibold text-slate-700">Curador</Label>
           <Select
             value={selectedCuradorId || 'todos'}
             onValueChange={(value) =>
-              updateFilters({ curadorId: value === 'todos' ? null : value })
+              updateFilters({ curadorId: value === 'todos' ? null : value, page: null })
             }
           >
             <SelectTrigger className="w-[240px]">
@@ -99,7 +135,9 @@ export function AdminDocumentsTable({
           <Switch
             id="con-notas"
             checked={conNotas}
-            onCheckedChange={(checked) => updateFilters({ conNotas: checked ? 'true' : null })}
+            onCheckedChange={(checked) =>
+              updateFilters({ conNotas: checked ? 'true' : null, page: null })
+            }
           />
           <Label htmlFor="con-notas" className="text-sm font-medium text-slate-700">
             Solo con notas
@@ -172,31 +210,13 @@ export function AdminDocumentsTable({
         </div>
       )}
 
-      {total > 0 && (
-        <div className="flex items-center justify-between text-sm text-slate-600">
-          <span>
-            Página {page} de {totalPages} ({total} documentos)
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => updateFilters({ page: String(page - 1) })}
-            >
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => updateFilters({ page: String(page + 1) })}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
-      )}
+      <DocumentPagination
+        page={page}
+        limit={limit}
+        total={total}
+        totalPages={totalPages}
+        basePath="/admin/gestion-documental"
+      />
     </div>
   )
 }
