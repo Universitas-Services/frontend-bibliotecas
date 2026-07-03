@@ -37,4 +37,22 @@ describe('validateDocumentUploadForm', () => {
       }),
     ).toEqual([])
   })
+
+  it('no exige pais en instrumentos internacionales', () => {
+    const formData = new FormData()
+    formData.append('tituloIntegro', 'Convenio internacional')
+    formData.append('subcarpetaNormaId', 'uuid-tipo-doc')
+    formData.append('carpetaInternaId', 'uuid-carpeta-hoja')
+    formData.append('categoriaIds', 'cat-uuid-1')
+
+    const issues = validateDocumentUploadForm(formData, {
+      schemaKey: 'instrumentos-internacionales',
+      metadatosValues: {
+        organizacionInternacional: 'ONU',
+        fechaAdopcion: '2024-01-15',
+      },
+    })
+
+    expect(issues.some((issue) => issue.field === 'pais')).toBe(false)
+  })
 })

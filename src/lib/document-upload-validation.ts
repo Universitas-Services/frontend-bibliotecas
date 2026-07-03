@@ -1,5 +1,10 @@
-import { validateMetadatosForm } from '@/lib/metadata-schemas'
+import { validateMetadatosForm, requiresPaisField } from '@/lib/metadata-schemas'
 import { extractUploadTopLevelFields } from '@/lib/document-form-data'
+
+function requiresPaisForSchema(schemaKey?: string | null): boolean {
+  if (schemaKey === undefined) return true
+  return requiresPaisField(schemaKey)
+}
 
 export type UploadValidationIssue = {
   field: string
@@ -43,7 +48,7 @@ export function validateDocumentUploadForm(
     })
   }
 
-  if (!pais) {
+  if (requiresPaisForSchema(options.schemaKey) && !pais) {
     issues.push({
       field: 'pais',
       message: 'El país es obligatorio.',

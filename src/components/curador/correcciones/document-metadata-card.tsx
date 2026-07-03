@@ -2,7 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { extractDocumentCategorias } from '@/lib/document-categorias'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
-import { parseMetadatosObject, TERRITORIAL_ID_KEYS } from '@/lib/metadata-schemas'
+import {
+  parseMetadatosObject,
+  TERRITORIAL_ID_KEYS,
+  shouldDisplayPaisForDocument,
+} from '@/lib/metadata-schemas'
 
 export interface DocumentData {
   titulo?: string | null
@@ -92,6 +96,7 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
   const metadatos = parseMetadatosObject(document.metadatos)
   const hiddenMetadataKeys = new Set<string>(TERRITORIAL_ID_KEYS)
   const visibleMetadatos = Object.entries(metadatos).filter(([key]) => !hiddenMetadataKeys.has(key))
+  const showPais = shouldDisplayPaisForDocument(document.tipoDocumento || document.tipoNorma, [])
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,7 +137,7 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
             />
           </div>
 
-          <div className="mx-4 mb-4 flex flex-col gap-4 md:flex-row">
+          <div className={`mx-4 mb-4 flex flex-col gap-4 ${showPais ? 'md:flex-row' : ''}`}>
             <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
               <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
                 Rama del derecho
@@ -141,14 +146,16 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
                 {document.temaPrincipal || 'No especificado'}
               </p>
             </div>
-            <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
-              <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
-                País
-              </h4>
-              <p className="text-[14px] font-bold text-[#00315C]">
-                {document.pais || 'No especificado'}
-              </p>
-            </div>
+            {showPais ? (
+              <div className="flex-1 rounded-md bg-white p-5 shadow-sm">
+                <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+                  País
+                </h4>
+                <p className="text-[14px] font-bold text-[#00315C]">
+                  {document.pais || 'No especificado'}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
