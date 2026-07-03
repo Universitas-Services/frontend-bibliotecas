@@ -4,6 +4,7 @@ import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
 import {
   buildMetadatosFromForm,
   METADATA_SCHEMAS,
+  requiresPaisField,
   resolveMetadataSchemaKey,
 } from '@/lib/metadata-schemas'
 
@@ -25,12 +26,16 @@ describe('metadata-schemas', () => {
     expect(result.ambitoGeografico).toBe('Nacional')
   })
 
-  it('incluye parroquia en legislacion municipal', () => {
+  it('no incluye parroquia en legislacion municipal', () => {
     const schema = METADATA_SCHEMAS['legislacion-municipal']
-    expect(schema.fields.some((field) => field.key === 'parroquia')).toBe(true)
-    expect(schema.fields.find((field) => field.key === 'parroquia')?.optionSource).toBe(
-      'global-parroquia',
-    )
+    expect(schema.fields.some((field) => field.key === 'parroquia')).toBe(false)
+    expect(schema.fields.map((field) => field.key)).toEqual([
+      'estado',
+      'municipio',
+      'rango',
+      'numeroGacetaMunicipal',
+      'fechaPromulgacion',
+    ])
   })
 
   it('resuelve esquemas de jurisprudencia segun la clasificacion', () => {
@@ -84,8 +89,6 @@ describe('metadata-schemas', () => {
       estadoId: '14',
       municipio: 'Baruta',
       municipioId: '102',
-      parroquia: 'Baruta',
-      parroquiaId: '501',
       rango: 'Ordenanza',
       numeroGacetaMunicipal: '123',
       fechaPromulgacion: '2024-05-12',
@@ -95,8 +98,14 @@ describe('metadata-schemas', () => {
     expect(result.estadoId).toBe(14)
     expect(result.municipio).toBe('Baruta')
     expect(result.municipioId).toBe(102)
-    expect(result.parroquia).toBe('Baruta')
-    expect(result.parroquiaId).toBe(501)
+    expect(result.parroquia).toBeUndefined()
+    expect(result.parroquiaId).toBeUndefined()
+  })
+
+  it('instrumentos internacionales no requieren pais', () => {
+    expect(requiresPaisField('instrumentos-internacionales')).toBe(false)
+    expect(requiresPaisField('jurisprudencia-internacional')).toBe(false)
+    expect(requiresPaisField('legislacion-municipal')).toBe(true)
   })
 })
 

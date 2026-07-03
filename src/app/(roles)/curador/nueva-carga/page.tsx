@@ -27,6 +27,7 @@ import {
   buildMetadatosFromForm,
   parseMetadatosObject,
   resolveMetadataSchemaKey,
+  requiresPaisField,
 } from '@/lib/metadata-schemas'
 import {
   formatUploadValidationIssues,
@@ -503,6 +504,7 @@ export default function NuevaCargaPage() {
                 </span>
               </h2>
               <UniversalMetadataSection
+                hidePais={!requiresPaisField(schemaKey)}
                 initialValues={
                   documento
                     ? {

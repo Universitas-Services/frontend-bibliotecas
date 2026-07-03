@@ -43,6 +43,7 @@ const COUNTRY_OPTIONS = [
 ].map((name) => ({ value: name, label: name }))
 
 type UniversalMetadataSectionProps = {
+  hidePais?: boolean
   initialValues?: {
     pais?: string
     jerarquiaSuperiorId?: string
@@ -50,26 +51,31 @@ type UniversalMetadataSectionProps = {
   }
 }
 
-export function UniversalMetadataSection({ initialValues }: UniversalMetadataSectionProps) {
+export function UniversalMetadataSection({
+  hidePais = false,
+  initialValues,
+}: UniversalMetadataSectionProps) {
   const [selectedPais, setSelectedPais] = useState(initialValues?.pais || 'Venezuela')
 
   return (
     <div className="space-y-5">
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-[#00315C]">
-          País
-          <span className="ml-1 text-red-500">*</span>
-        </label>
-        <input type="hidden" name="pais" value={selectedPais} />
-        <Combobox
-          options={COUNTRY_OPTIONS}
-          value={selectedPais}
-          onValueChange={setSelectedPais}
-          placeholder="Seleccione un país..."
-          searchPlaceholder="Buscar país..."
-          emptyText="País no encontrado."
-        />
-      </div>
+      {!hidePais ? (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-[#00315C]">
+            País
+            <span className="ml-1 text-red-500">*</span>
+          </label>
+          <input type="hidden" name="pais" value={selectedPais} />
+          <Combobox
+            options={COUNTRY_OPTIONS}
+            value={selectedPais}
+            onValueChange={setSelectedPais}
+            placeholder="Seleccione un país..."
+            searchPlaceholder="Buscar país..."
+            emptyText="País no encontrado."
+          />
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-[#00315C]">

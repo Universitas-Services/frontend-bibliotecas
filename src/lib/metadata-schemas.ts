@@ -148,16 +148,6 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
         companionIdKey: 'municipioId',
       },
       {
-        key: 'parroquia',
-        label: 'Parroquia',
-        type: 'select',
-        required: true,
-        dependsOn: 'municipio',
-        dependsOnId: 'municipioId',
-        optionSource: 'global-parroquia',
-        companionIdKey: 'parroquiaId',
-      },
-      {
         key: 'rango',
         label: 'Rango normativo',
         type: 'select',
@@ -557,4 +547,34 @@ export function parseMetadatosObject(value: unknown): Record<string, string> {
     result[key] = String(val)
   }
   return result
+}
+
+/** Esquemas donde el campo universal `pais` no aplica (instrumentos / jurisprudencia internacional). */
+export const SCHEMAS_WITHOUT_PAIS = new Set([
+  'instrumentos-internacionales',
+  'jurisprudencia-internacional',
+])
+
+export function requiresPaisField(schemaKey: string | null | undefined): boolean {
+  if (!schemaKey) return true
+  return !SCHEMAS_WITHOUT_PAIS.has(schemaKey)
+}
+
+export function shouldDisplayPaisForDocument(
+  tipoDocumentoNombre?: string | null,
+  carpetaPathNames: string[] = [],
+): boolean {
+  const schemaKey = resolveMetadataSchemaKey(tipoDocumentoNombre || '', carpetaPathNames)
+  if (schemaKey) return requiresPaisField(schemaKey)
+
+  const tipo = normalize(tipoDocumentoNombre || '')
+  if (tipo.includes('instrumentos internacionales')) return false
+  if (
+    tipo.includes('jurisprudencia') &&
+    carpetaPathNames.some((segment) => normalize(segment).includes('internacional'))
+  ) {
+    return false
+  }
+
+  return true
 }
