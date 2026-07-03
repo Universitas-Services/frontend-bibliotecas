@@ -11,9 +11,16 @@ type DocumentPaginationProps = {
   limit: number
   total: number
   totalPages: number
+  basePath?: string
 }
 
-export function DocumentPagination({ page, limit, total, totalPages }: DocumentPaginationProps) {
+export function DocumentPagination({
+  page,
+  limit,
+  total,
+  totalPages,
+  basePath = '/curador/gestion-documental',
+}: DocumentPaginationProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [, startTransition] = useTransition()
@@ -32,7 +39,7 @@ export function DocumentPagination({ page, limit, total, totalPages }: DocumentP
     }
     const query = params.toString()
     startTransition(() => {
-      router.push(query ? `?${query}` : '/curador/gestion-documental')
+      router.push(query ? `${basePath}?${query}` : basePath)
     })
   }
 
