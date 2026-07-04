@@ -10,35 +10,35 @@ import { SEO_LIMITS } from '@/lib/seo-limits'
 
 type SeoSectionProps = {
   initialResumen?: string
-  initialEtiquetas?: string[]
+  initialKeywords?: string[]
 }
 
-export function SeoSection({ initialResumen = '', initialEtiquetas = [] }: SeoSectionProps) {
+export function SeoSection({ initialResumen = '', initialKeywords = [] }: SeoSectionProps) {
   const [resumen, setResumen] = useState(initialResumen)
-  const [etiquetas, setEtiquetas] = useState<string[]>(initialEtiquetas)
-  const [etiquetaInput, setEtiquetaInput] = useState('')
+  const [keywords, setKeywords] = useState<string[]>(initialKeywords)
+  const [keywordInput, setKeywordInput] = useState('')
 
-  const addEtiqueta = () => {
-    const trimmed = etiquetaInput.trim().slice(0, SEO_LIMITS.keywordMaxLength)
+  const addKeyword = () => {
+    const trimmed = keywordInput.trim().slice(0, SEO_LIMITS.keywordMaxLength)
     if (!trimmed) return
-    if (etiquetas.length >= SEO_LIMITS.maxKeywords) return
-    if (etiquetas.includes(trimmed)) {
-      setEtiquetaInput('')
+    if (keywords.length >= SEO_LIMITS.maxKeywords) return
+    if (keywords.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
+      setKeywordInput('')
       return
     }
-    setEtiquetas((prev) => [...prev, trimmed])
-    setEtiquetaInput('')
+    setKeywords((prev) => [...prev, trimmed])
+    setKeywordInput('')
   }
 
-  const handleEtiquetaKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeywordKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      addEtiqueta()
+      addKeyword()
     }
   }
 
-  const removeEtiqueta = (etiqueta: string) => {
-    setEtiquetas((prev) => prev.filter((k) => k !== etiqueta))
+  const removeKeyword = (keyword: string) => {
+    setKeywords((prev) => prev.filter((k) => k !== keyword))
   }
 
   return (
@@ -60,42 +60,45 @@ export function SeoSection({ initialResumen = '', initialEtiquetas = [] }: SeoSe
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-[#00315C]">Etiquetas</label>
-          <CharacterCounter current={etiquetas.length} max={SEO_LIMITS.maxKeywords} />
+          <label className="text-sm font-medium text-[#00315C]">Palabras clave</label>
+          <CharacterCounter current={keywords.length} max={SEO_LIMITS.maxKeywords} />
         </div>
         <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-md border border-gray-300 bg-white p-2">
-          {etiquetas.map((etiqueta) => (
+          {keywords.map((keyword) => (
             <Badge
-              key={etiqueta}
+              key={keyword}
               variant="secondary"
               className="flex items-center gap-1.5 rounded-full bg-[#E2E8F0] px-3 py-1 font-normal text-[#334155] hover:bg-[#CBD5E1]"
             >
-              {etiqueta}
+              {keyword}
               <button
                 type="button"
-                onClick={() => removeEtiqueta(etiqueta)}
+                onClick={() => removeKeyword(keyword)}
                 className="rounded-full hover:text-red-600"
-                aria-label={`Quitar ${etiqueta}`}
+                aria-label={`Quitar ${keyword}`}
               >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           ))}
-          {etiquetas.length < SEO_LIMITS.maxKeywords ? (
+          {keywords.length < SEO_LIMITS.maxKeywords ? (
             <input
               type="text"
-              value={etiquetaInput}
+              value={keywordInput}
               onChange={(e) =>
-                setEtiquetaInput(e.target.value.slice(0, SEO_LIMITS.keywordMaxLength))
+                setKeywordInput(e.target.value.slice(0, SEO_LIMITS.keywordMaxLength))
               }
-              onKeyDown={handleEtiquetaKeyDown}
+              onKeyDown={handleKeywordKeyDown}
               maxLength={SEO_LIMITS.keywordMaxLength}
               placeholder="Escriba y presione Enter..."
               className="ml-2 min-w-[150px] flex-1 border-none bg-transparent text-sm text-gray-500 outline-none"
             />
           ) : null}
         </div>
-        <input type="hidden" name="etiquetas" value={JSON.stringify(etiquetas)} />
+        <p className="text-xs text-gray-500">
+          Términos libres para indexación y búsqueda. No forman parte de la taxonomía de etiquetas.
+        </p>
+        <input type="hidden" name="keywords" value={JSON.stringify(keywords)} />
       </div>
     </div>
   )

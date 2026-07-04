@@ -61,10 +61,7 @@ export function UniversalMetadataSection({
     <div className="space-y-5">
       {!hidePais ? (
         <div className="space-y-2">
-          <label className="text-sm font-medium text-[#00315C]">
-            País
-            <span className="ml-1 text-red-500">*</span>
-          </label>
+          <label className="text-sm font-medium text-[#00315C]">País</label>
           <input type="hidden" name="pais" value={selectedPais} />
           <Combobox
             options={COUNTRY_OPTIONS}

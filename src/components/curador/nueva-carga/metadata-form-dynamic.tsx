@@ -134,10 +134,7 @@ function SchemaFields({
       <p className="text-sm font-medium text-[#00315C]">{schema.label}</p>
       {schema.fields.map((field) => (
         <div key={field.key} className="space-y-2">
-          <label className="text-sm font-medium text-[#00315C]">
-            {field.label}
-            {field.required ? <span className="ml-1 text-red-500">*</span> : null}
-          </label>
+          <label className="text-sm font-medium text-[#00315C]">{field.label}</label>
           {renderField(field, values, handleFieldChange, handleTerritorialChange)}
         </div>
       ))}

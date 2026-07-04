@@ -29,6 +29,8 @@ export const USER_MSG = {
     reformaLey: 'Seleccione la ley original que está siendo reformada.',
     reformaEditUnavailable: 'La edición como reforma aún no está disponible. Cree una nueva carga.',
     classification: 'Complete la clasificación del documento antes de continuar.',
+    tituloIntegroRequired: 'El título oficial es obligatorio.',
+    nombreBreveRequired: 'El nombre breve es obligatorio.',
     categorias: 'Asigne al menos una categoría antes de continuar.',
     loginCredentials: 'Ingrese su correo y contraseña.',
     uploadFile: 'Seleccione un archivo para cargar.',
@@ -62,6 +64,14 @@ export const USER_MSG = {
     tipoDocumentoCreated: 'Tipo documental creado correctamente.',
     tipoNormaCreated: 'Tipo de norma creado correctamente.',
     categoriaCreated: 'Categoría creada correctamente.',
+    categoriaSuggested:
+      'Categoría sugerida correctamente. Un administrador la revisará antes de poder asignarla.',
+    etiquetaCreated: 'Etiqueta creada correctamente.',
+    etiquetaSuggested:
+      'Etiqueta sugerida. Quedará pendiente de moderación y se incluirá en este documento.',
+    etiquetaDeleted: 'Etiqueta eliminada correctamente.',
+    sugerenciaAprobada: 'Sugerencia aprobada correctamente.',
+    sugerenciaRechazada: 'Sugerencia rechazada correctamente.',
     productCreated: 'Producto creado correctamente.',
     articuloCreated: 'Artículo creado correctamente.',
     userCreated: 'Usuario creado correctamente.',
@@ -96,6 +106,11 @@ export const USER_MSG = {
     uploadMatrix: 'No pudimos cargar el archivo.',
     partialUpload: 'El documento se guardó, pero hubo un problema al completar el proceso.',
     partialResubmit: 'Los cambios se guardaron, pero no pudimos reenviar el documento a revisión.',
+    createEtiqueta: 'No pudimos crear la etiqueta.',
+    deleteEtiqueta: 'No pudimos eliminar la etiqueta.',
+    suggestCategoria: 'No pudimos enviar la sugerencia de categoría.',
+    approveSugerencia: 'No pudimos aprobar la sugerencia.',
+    rejectSugerencia: 'No pudimos rechazar la sugerencia.',
   },
 } as const
 

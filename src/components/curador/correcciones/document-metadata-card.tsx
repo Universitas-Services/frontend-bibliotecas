@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { extractDocumentCategorias } from '@/lib/document-categorias'
+import { extractDocumentEtiquetas, extractDocumentKeywords } from '@/lib/document-etiquetas'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
 import {
   parseMetadatosObject,
@@ -16,6 +17,8 @@ export interface DocumentData {
   tipoNorma?: string | null
   temaPrincipal?: string | null
   resumen?: string | null
+  etiquetas?: unknown
+  keywords?: unknown
   tipoDocumento?: string | null
   pais?: string | null
   metadatos?: Record<string, unknown> | null
@@ -93,6 +96,8 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
 
   const matrices = extractDocumentMatrices(document as Record<string, unknown>)
   const categorias = extractDocumentCategorias(document as Record<string, unknown>)
+  const etiquetas = extractDocumentEtiquetas(document as Record<string, unknown>)
+  const keywords = extractDocumentKeywords(document as Record<string, unknown>)
   const metadatos = parseMetadatosObject(document.metadatos)
   const hiddenMetadataKeys = new Set<string>(TERRITORIAL_ID_KEYS)
   const visibleMetadatos = Object.entries(metadatos).filter(([key]) => !hiddenMetadataKeys.has(key))
@@ -178,6 +183,27 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
             )}
           </div>
 
+          <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
+            <h4 className="mb-2 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
+              Etiquetas
+            </h4>
+            {etiquetas.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {etiquetas.map((etiqueta) => (
+                  <Badge
+                    key={etiqueta}
+                    variant="outline"
+                    className="rounded-full border-[#93C5FD] bg-[#EFF6FF] px-3 py-1 text-[11px] font-semibold text-[#1D4ED8]"
+                  >
+                    #{etiqueta}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[14px] font-medium text-[#6B7280]">Sin etiquetas asignadas</p>
+            )}
+          </div>
+
           {document.gacetaPdfUrl ? (
             <div className="mx-4 mb-4 rounded-md bg-white p-5 shadow-sm">
               <h4 className="mb-1 text-[10px] font-bold tracking-wider text-[#6B7280] uppercase">
@@ -240,6 +266,29 @@ export function DocumentMetadataCard({ document }: DocumentMetadataProps) {
           </div>
         </CardContent>
       </Card>
+
+      {keywords.length > 0 ? (
+        <Card className="border-[#E5E7EB] bg-[#F9FAFB] shadow-sm">
+          <CardHeader className="border-b border-[#E5E7EB] bg-white pb-3">
+            <CardTitle className="text-[11px] font-bold tracking-wider text-[#6B7280] uppercase">
+              Palabras clave
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="flex flex-wrap gap-2">
+              {keywords.map((keyword) => (
+                <Badge
+                  key={keyword}
+                  variant="secondary"
+                  className="rounded-full bg-[#E2E8F0] px-3 py-1 text-[11px] font-semibold text-[#334155]"
+                >
+                  {keyword}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }

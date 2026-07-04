@@ -200,6 +200,11 @@ export function buildDocumentMultipartPayload({
     formData.set('etiquetas', JSON.stringify(etiquetas))
   }
 
+  const keywords = readStringArray(outbound, 'keywords')
+  if (keywords.length > 0) {
+    formData.set('keywords', JSON.stringify(keywords))
+  }
+
   const matrizAId = (outbound.get('matrizAId') as string) || ''
   if (matrizAId) formData.set('matrizAId', matrizAId)
 
