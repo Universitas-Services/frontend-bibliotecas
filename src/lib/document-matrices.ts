@@ -43,7 +43,9 @@ function readMatrizBRef(value: unknown): MatrizBRef | null {
 
   return {
     id,
-    titulo: String(record.tituloArticulo || record.titulo || 'Artículo sin título'),
+    titulo: String(
+      record.tituloArticulo || record.titulo || record.nombre || 'Artículo sin título',
+    ),
   }
 }
 
