@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 
 import { getApiBaseUrl } from '@/lib/api'
 import { isTokenExpired } from '@/lib/auth'
+import { ACCESS_TOKEN_COOKIE } from '@/lib/auth-cookies'
 import { toUserFacingMessage, translateBackendError, USER_MSG } from '@/lib/user-messages'
 
 export type ApiErrorCode = 'NO_TOKEN' | 'TOKEN_EXPIRED' | 'HTTP_ERROR' | 'NETWORK_ERROR'
@@ -231,7 +232,7 @@ export function normalizeDocumentsList(data: unknown): Record<string, unknown>[]
 
 export async function getBearerToken(): Promise<string | null> {
   const cookieStore = await cookies()
-  const token = cookieStore.get('access_token')?.value
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
   if (!token || isTokenExpired(token)) {
     return null
   }
@@ -244,7 +245,7 @@ export async function getAuthFailure(): Promise<{
   code: ApiErrorCode
 }> {
   const cookieStore = await cookies()
-  const token = cookieStore.get('access_token')?.value
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
 
   if (token && isTokenExpired(token)) {
     return {

@@ -29,6 +29,10 @@ export function FirstLoginChangePasswordForm() {
       toastError(USER_MSG.common.sessionExpired)
       router.replace('/login?logout=1')
     }
+
+    if (state?.redirectTo) {
+      window.location.assign(state.redirectTo)
+    }
   }, [state, router])
 
   return (

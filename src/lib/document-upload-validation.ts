@@ -1,3 +1,4 @@
+import { extractUploadTopLevelFields } from '@/lib/document-form-data'
 import { USER_MSG } from '@/lib/user-messages'
 
 export type UploadValidationIssue = {
@@ -13,6 +14,7 @@ export type ClassificationValidationInput = {
 
 type ValidateDocumentUploadOptions = {
   classification?: ClassificationValidationInput
+  metadatos?: Record<string, unknown>
 }
 
 function readClassificationFromForm(
@@ -33,6 +35,14 @@ function readClassificationFromForm(
       String(formData.get('carpetaInternaId') ?? '').trim() ||
       undefined,
   }
+}
+
+function readCategoriaIdsFromForm(formData: FormData): string[] {
+  return formData
+    .getAll('categoriaIds')
+    .map(String)
+    .map((id) => id.trim())
+    .filter(Boolean)
 }
 
 export function validateLegalIdentificationForm(formData: FormData): UploadValidationIssue[] {
@@ -98,11 +108,45 @@ function validateUploadMinimumForm(
   ]
 }
 
+export function validateDocumentPublishRequirements(
+  formData: FormData,
+  options: ValidateDocumentUploadOptions = {},
+): UploadValidationIssue[] {
+  const issues: UploadValidationIssue[] = []
+
+  const categoriaIds = readCategoriaIdsFromForm(formData)
+  if (categoriaIds.length === 0) {
+    issues.push({
+      field: 'categoriaIds',
+      message: USER_MSG.validation.categorias,
+    })
+  }
+
+  const topLevel = extractUploadTopLevelFields(options.metadatos)
+  if (!topLevel.enteEmisor) {
+    issues.push({
+      field: 'enteEmisor',
+      message: USER_MSG.validation.enteEmisorRequired,
+    })
+  }
+  if (!topLevel.fechaPublicacion) {
+    issues.push({
+      field: 'fechaPublicacion',
+      message: USER_MSG.validation.fechaPublicacionRequired,
+    })
+  }
+
+  return issues
+}
+
 export function validateDocumentUploadForm(
   formData: FormData,
   options: ValidateDocumentUploadOptions = {},
 ): UploadValidationIssue[] {
-  return validateUploadMinimumForm(formData, options)
+  return [
+    ...validateUploadMinimumForm(formData, options),
+    ...validateDocumentPublishRequirements(formData, options),
+  ]
 }
 
 export function validateBorradorForm(

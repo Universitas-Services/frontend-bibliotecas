@@ -93,9 +93,67 @@ export const LEGAL_STATUS_STYLES: Record<
   },
 }
 
+/** Normaliza un valor de estado del workflow CMS. */
+export function normalizeWorkflowEstado(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+/g, '_')
+}
+
+/** Indica si el valor corresponde al enum de workflow (no geografía). */
+export function isWorkflowEstado(raw: string): boolean {
+  const normalized = normalizeWorkflowEstado(raw)
+  if (!normalized) return false
+
+  return (
+    normalized === 'PUBLICADO' ||
+    normalized.includes('PUBLICADO') ||
+    normalized === 'BORRADOR' ||
+    normalized.includes('BORRADOR') ||
+    normalized === 'PENDIENTE_REVISION' ||
+    normalized.includes('PENDIENTE') ||
+    normalized.includes('REVISION') ||
+    normalized === 'RECHAZADO' ||
+    normalized.includes('RECHAZADO')
+  )
+}
+
+function readMetadatosRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return value as Record<string, unknown>
+}
+
+/**
+ * Resuelve el estado del workflow desde un documento GET.
+ * Mitiga la colisión backend metadatos.estado → doc.estado (ej. "Lara").
+ */
+export function resolveDocumentWorkflowEstado(
+  doc: Record<string, unknown> | null | undefined,
+): string {
+  if (!doc) return ''
+
+  const candidates = [doc.estado, doc.estadoDocumento, doc.estadoWorkflow]
+
+  for (const candidate of candidates) {
+    const value = String(candidate ?? '').trim()
+    if (value && isWorkflowEstado(value)) return value
+  }
+
+  const estado = String(doc.estado ?? '').trim()
+  if (!estado) return ''
+
+  const metadatos = readMetadatosRecord(doc.metadatos)
+  const geo = String(metadatos.estadoGeografico ?? metadatos.estado ?? '').trim()
+  if (geo && geo.toLowerCase() === estado.toLowerCase()) {
+    return 'PENDIENTE_REVISION'
+  }
+
+  return estado
+}
+
 /** Flujo CMS: BORRADOR | PENDIENTE_REVISION | PUBLICADO */
 export function mapBackendStatus(estado: string): DocumentStatus {
-  const normalized = estado.toUpperCase().replace(/\s+/g, '_')
+  const normalized = normalizeWorkflowEstado(estado)
+
+  if (!normalized) return 'en-revision'
 
   if (normalized === 'PUBLICADO' || normalized.includes('PUBLICADO')) {
     return 'publicado'
@@ -117,7 +175,11 @@ export function mapBackendStatus(estado: string): DocumentStatus {
     return 'rechazado'
   }
 
-  return 'borrador'
+  return 'en-revision'
+}
+
+export function mapDocumentStatus(doc: Record<string, unknown> | null | undefined): DocumentStatus {
+  return mapBackendStatus(resolveDocumentWorkflowEstado(doc))
 }
 
 /** Validez jurídica: VIGENTE | REFORMADA | DEROGADA | null */

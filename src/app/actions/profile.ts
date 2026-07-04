@@ -12,7 +12,7 @@ export async function getUserMeAction(): Promise<GetUserMeResult> {
   const result = await apiGet('/users/me')
 
   if (!result.success) {
-    if (result.status === 401 || result.status === 404) {
+    if (result.status === 401) {
       return { success: false, sessionInvalid: true }
     }
 

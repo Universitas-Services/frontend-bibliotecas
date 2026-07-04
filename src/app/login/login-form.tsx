@@ -3,28 +3,54 @@
 import { useActionState, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { loginAction } from '@/app/actions/auth'
+import { loginAction, type LoginState } from '@/app/actions/auth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { toastError } from '@/lib/toast-messages'
 import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
 
-const initialState = {
-  error: null as string | null,
+const initialState: LoginState = {
+  error: null,
+}
+
+const AUTH_REASON_MESSAGES: Record<string, string> = {
+  missing: 'No se detectó una sesión activa.',
+  expired: 'Su sesión expiró.',
+  role: 'No se pudo validar su rol de usuario.',
+  profile: 'No se pudo verificar su perfil con el servidor.',
 }
 
 export function LoginForm() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
+  const authReason = searchParams.get('authReason')
+  const isLogout = searchParams.get('logout') === '1'
   const [state, formAction, isPending] = useActionState(loginAction, initialState)
   const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.history.replaceState(null, '', window.location.href)
+  }, [])
 
   useEffect(() => {
     if (state?.error) {
       toastError(USER_MSG.error.login, toUserFacingMessage(state.error))
     }
   }, [state?.error])
+
+  useEffect(() => {
+    if (!state?.redirectTo) return
+    window.location.assign(state.redirectTo)
+  }, [state?.redirectTo])
+
+  const sessionNotice =
+    authReason && AUTH_REASON_MESSAGES[authReason]
+      ? AUTH_REASON_MESSAGES[authReason]
+      : isLogout
+        ? 'Sesión cerrada correctamente.'
+        : null
 
   return (
     <div className="flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-[#F8FAFC]">
@@ -45,6 +71,18 @@ export function LoginForm() {
             Acceso Institucional
           </h1>
           <p className="text-sm text-[#C1C7D2]">Ingrese sus credenciales para continuar.</p>
+          {sessionNotice ? <p className="mt-3 text-xs text-amber-200">{sessionNotice}</p> : null}
+          {authReason ? (
+            <p className="mt-1 text-[10px] text-[#9CA3AF]">
+              Código de diagnóstico: <span className="font-mono">{authReason}</span>
+              {redirectTo ? (
+                <>
+                  {' '}
+                  · destino: <span className="font-mono">{redirectTo}</span>
+                </>
+              ) : null}
+            </p>
+          ) : null}
         </div>
 
         <form action={formAction} className="space-y-6">

@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { FileCheck, ClipboardList, FileText, AlertTriangle } from 'lucide-react'
+import { FileCheck, ClipboardList, FileText, AlertTriangle, Send } from 'lucide-react'
 
 import { DocumentActions } from '@/components/curador/document-actions'
+import { PublicarBorradorModal } from '@/components/curador/publicar-borrador-modal'
 import {
   getCuradorDocumentEditHref,
   getCuradorDocumentViewHref,
@@ -53,8 +55,11 @@ const RECHAZADO_STYLES = {
 } as const
 
 export function DocumentCard({ doc }: { doc: DocumentData }) {
+  const [publishModalOpen, setPublishModalOpen] = useState(false)
+
   const rechazado = doc.status === 'rechazado'
   const devuelto = !rechazado && doc.status === 'borrador' && doc.tieneNotas
+  const borradorEditable = !rechazado && doc.status === 'borrador' && !doc.tieneNotas
 
   const styles = rechazado
     ? RECHAZADO_STYLES
@@ -110,16 +115,26 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
               <Button size="sm" className="h-9 bg-[#DC2626] hover:bg-[#B91C1C]" asChild>
                 <Link href={getCuradorDocumentEditHref(doc.id)}>Corregir y reenviar</Link>
               </Button>
+            ) : borradorEditable ? (
+              <>
+                <Button
+                  size="sm"
+                  className="h-9 bg-[#005496] hover:bg-[#00315C]"
+                  onClick={() => setPublishModalOpen(true)}
+                >
+                  <Send className="mr-1.5 h-4 w-4" />
+                  Enviar a revisión
+                </Button>
+                <Button size="sm" variant="outline" className="h-9" asChild>
+                  <Link href={getCuradorDocumentEditHref(doc.id)}>Continuar edición</Link>
+                </Button>
+              </>
             ) : doc.status === 'borrador' ? (
               devuelto ? (
                 <Button size="sm" className="h-9 bg-[#B45309] hover:bg-[#92400E]" asChild>
                   <Link href={getCuradorDocumentViewHref(doc.id, true)}>Ver correcciones</Link>
                 </Button>
-              ) : (
-                <Button size="sm" className="h-9 bg-[#005496] hover:bg-[#00315C]" asChild>
-                  <Link href={getCuradorDocumentEditHref(doc.id)}>Continuar edición</Link>
-                </Button>
-              )
+              ) : null
             ) : null}
             <DocumentActions
               documentId={doc.id}
@@ -130,6 +145,15 @@ export function DocumentCard({ doc }: { doc: DocumentData }) {
           </div>
         </div>
       </div>
+
+      {borradorEditable ? (
+        <PublicarBorradorModal
+          documentId={doc.id}
+          documentTitle={doc.title}
+          open={publishModalOpen}
+          onOpenChange={setPublishModalOpen}
+        />
+      ) : null}
     </div>
   )
 }

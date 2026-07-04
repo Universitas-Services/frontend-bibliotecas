@@ -63,11 +63,21 @@ const LEGISLACION_MUNICIPAL_RANGOS = [
   'Acuerdo Municipal',
 ].map((r) => ({ value: r, label: r }))
 
+/** Key del metadato geográfico (entidad federal). No usar `estado` — colisiona con el workflow CMS. */
+export const METADATA_ESTADO_GEOGRAFICO_KEY = 'estadoGeografico'
+
 export const TERRITORIAL_ID_KEYS = ['estadoId', 'municipioId', 'parroquiaId', 'tribunalId'] as const
 
 /** Campos que se limpian al cambiar un select territorial padre. */
 export const TERRITORIAL_CASCADE_CLEAR: Record<string, string[]> = {
-  estado: ['municipio', 'municipioId', 'parroquia', 'parroquiaId', 'tribunal', 'tribunalId'],
+  estadoGeografico: [
+    'municipio',
+    'municipioId',
+    'parroquia',
+    'parroquiaId',
+    'tribunal',
+    'tribunalId',
+  ],
   municipio: ['parroquia', 'parroquiaId', 'tribunal', 'tribunalId'],
   parroquia: [],
   tribunal: [],
@@ -107,7 +117,7 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
     label: 'Legislación Estadal',
     fields: [
       {
-        key: 'estado',
+        key: 'estadoGeografico',
         label: 'Estado',
         type: 'select',
         required: true,
@@ -130,7 +140,7 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
     label: 'Legislación Municipal',
     fields: [
       {
-        key: 'estado',
+        key: 'estadoGeografico',
         label: 'Estado',
         type: 'select',
         required: true,
@@ -142,7 +152,7 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
         label: 'Municipio',
         type: 'select',
         required: true,
-        dependsOn: 'estado',
+        dependsOn: 'estadoGeografico',
         dependsOnId: 'estadoId',
         optionSource: 'global-municipio',
         companionIdKey: 'municipioId',
@@ -214,7 +224,7 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
     label: 'Jurisprudencia — Tribunales',
     fields: [
       {
-        key: 'estado',
+        key: 'estadoGeografico',
         label: 'Estado',
         type: 'select',
         required: true,
@@ -226,7 +236,7 @@ export const METADATA_SCHEMAS: Record<string, MetadataSchema> = {
         label: 'Municipio (cuando aplique)',
         type: 'select',
         required: false,
-        dependsOn: 'estado',
+        dependsOn: 'estadoGeografico',
         dependsOnId: 'estadoId',
         optionSource: 'global-municipio',
         companionIdKey: 'municipioId',
@@ -546,6 +556,36 @@ export function parseMetadatosObject(value: unknown): Record<string, string> {
     if (val === null || val === undefined) continue
     result[key] = String(val)
   }
+  return normalizeGeographicMetadatos(result)
+}
+
+/** Migra legacy `estado` geográfico → `estadoGeografico` para evitar colisión con workflow CMS. */
+export function normalizeGeographicMetadatos(
+  metadatos: Record<string, string>,
+): Record<string, string> {
+  const result = { ...metadatos }
+
+  if (result.estadoGeografico?.trim()) {
+    delete result.estado
+    return result
+  }
+
+  const legacyEstado = result.estado?.trim()
+  if (!legacyEstado) return result
+
+  const normalized = legacyEstado.toUpperCase().replace(/\s+/g, '_')
+  const isWorkflow =
+    normalized.includes('PUBLICADO') ||
+    normalized.includes('BORRADOR') ||
+    normalized.includes('PENDIENTE') ||
+    normalized.includes('REVISION') ||
+    normalized.includes('RECHAZADO')
+
+  if (!isWorkflow) {
+    result.estadoGeografico = legacyEstado
+    delete result.estado
+  }
+
   return result
 }
 

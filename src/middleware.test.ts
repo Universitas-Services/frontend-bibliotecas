@@ -24,6 +24,7 @@ describe('middleware', () => {
     expect(response?.status).toBe(307)
     expect(response?.headers.get('location')).toContain('/login')
     expect(response?.headers.get('location')).toContain('redirect=%2Fcurador%2Fgestion-documental')
+    expect(response?.headers.get('location')).toContain('authReason=expired')
     expect(response?.cookies.get('access_token')?.value).toBe('')
   })
 

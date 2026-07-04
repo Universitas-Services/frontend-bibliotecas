@@ -11,7 +11,7 @@ import { DocumentPreview } from '@/components/curador/correcciones/document-prev
 import { RevisionHistory } from '@/components/curador/correcciones/revision-history'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { mapBackendStatus, DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
+import { mapDocumentStatus, DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -34,8 +34,7 @@ export default async function AdminDocumentReviewPage({ params }: PageProps) {
     combinedData?.tituloIntegro ||
     combinedData?.nombreBreve ||
     'Documento sin título'
-  const estadoBackend = String(combinedData?.estado || 'PENDIENTE_REVISION')
-  const status = mapBackendStatus(estadoBackend)
+  const status = mapDocumentStatus(combinedData as Record<string, unknown> | null)
   const statusStyle = DOCUMENT_STATUS_STYLES[status]
 
   const curatorMatrices = extractDocumentMatrices(

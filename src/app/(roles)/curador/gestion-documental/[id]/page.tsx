@@ -6,7 +6,7 @@ import { DocumentMetadataCard } from '@/components/curador/correcciones/document
 import { DocumentPreview } from '@/components/curador/correcciones/document-preview'
 import { CuradorPreviewActions } from '@/components/curador/curador-preview-actions'
 import { Button } from '@/components/ui/button'
-import { mapBackendStatus } from '@/lib/document-status'
+import { mapDocumentStatus } from '@/lib/document-status'
 import { getDocumentTimestamp } from '@/lib/session-shared'
 
 export default async function CuradorDocumentPreviewPage({
@@ -21,8 +21,7 @@ export default async function CuradorDocumentPreviewPage({
   const docData = documentRes.success ? documentRes.data : null
 
   const titulo = String(docData?.titulo || docData?.nombreBreve || 'Documento sin título')
-  const estado = String(docData?.estado || '—')
-  const status = mapBackendStatus(estado)
+  const status = mapDocumentStatus(docData as Record<string, unknown> | null)
   const canEdit = status === 'borrador' || status === 'en-revision'
   const lastUpdated = getDocumentTimestamp(docData as Record<string, unknown> | null | undefined)
 

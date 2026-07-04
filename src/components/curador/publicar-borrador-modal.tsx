@@ -85,6 +85,7 @@ export function PublicarBorradorModal({
       toastSuccess(USER_MSG.success.draftPublished)
       setComentarios('')
       onOpenChange(false)
+      router.push('/curador/gestion-documental?estado=en-revision')
       router.refresh()
     })
   }

@@ -32,6 +32,10 @@ export const USER_MSG = {
     tituloIntegroRequired: 'El título oficial es obligatorio.',
     nombreBreveRequired: 'El nombre breve es obligatorio.',
     categorias: 'Asigne al menos una categoría antes de continuar.',
+    enteEmisorRequired:
+      'Complete el ente emisor en los metadatos específicos antes de enviar a revisión.',
+    fechaPublicacionRequired:
+      'Complete la fecha de publicación en los metadatos específicos antes de enviar a revisión.',
     loginCredentials: 'Ingrese su correo y contraseña.',
     uploadFile: 'Seleccione un archivo para cargar.',
     fileTooLarge: 'El archivo supera el límite de 32 MB permitido por el servidor.',
@@ -44,7 +48,7 @@ export const USER_MSG = {
       'El archivo no puede previsualizarse ahora. Estamos trabajando para restablecer el acceso. Intente más tarde.',
   },
   success: {
-    documentUploaded: 'Documento cargado correctamente.',
+    documentUploaded: 'Documento enviado a revisión correctamente.',
     documentUpdated: 'Documento actualizado correctamente.',
     documentCorrected: 'Documento corregido y enviado a revisión.',
     draftSaved: 'Borrador guardado correctamente.',
