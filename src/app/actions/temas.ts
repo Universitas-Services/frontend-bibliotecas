@@ -178,6 +178,36 @@ export async function getCarpetasInternasHijosAction(
   return carpetas
 }
 
+export type CarpetaInternaDetalle = CarpetaInterna & {
+  parentId?: string | null
+}
+
+function readParentId(record: Record<string, unknown>): string | null {
+  const value = record.parentId ?? record.parent_id ?? record.carpetaPadreId
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return null
+}
+
+/** Detalle de carpeta interna (incluye parentId para reconstruir path en edición). */
+export async function getCarpetaInternaDetalleAction(
+  carpetaInternaId: string,
+): Promise<CarpetaInternaDetalle | null> {
+  const trimmed = carpetaInternaId.trim()
+  if (!trimmed) return null
+
+  const result = await apiGet(`/admin/storage/carpeta-interna/${trimmed}`)
+  if (!result.success || !result.data || typeof result.data !== 'object') {
+    return null
+  }
+
+  const record = result.data as Record<string, unknown>
+  return {
+    ...normalizeCarpetaInterna(record),
+    parentId: readParentId(record),
+  }
+}
+
 export async function eliminarTemaAction(temaId: string): Promise<CrearTemaResponse> {
   const result = await apiDelete(`/admin/storage/tema/${temaId}`)
 

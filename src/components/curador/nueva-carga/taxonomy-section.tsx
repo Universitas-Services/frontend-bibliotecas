@@ -1,18 +1,15 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useTransition } from 'react'
 import { X, Loader2, ChevronDown } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
-import { getCategoriasAdmin } from '@/app/actions/categorias'
-
-interface CategoriaItem {
-  id?: string
-  _id?: string
-  uuid?: string
-  nombre: string
-}
+import { getCategoriasAprobadasAction, sugerirCategoriaAction } from '@/app/actions/categorias'
+import { toastError, toastSuccess } from '@/lib/toast-messages'
+import { USER_MSG } from '@/lib/user-messages'
+import type { CategoriaItem } from '@/lib/types/taxonomia'
 
 type InitialCategoria = string | { id?: string; _id?: string; nombre?: string }
 
@@ -30,7 +27,7 @@ function getInitialCategoriaIds(initialCategorias: InitialCategoria[]): string[]
 }
 
 function getCategoriaId(cat: CategoriaItem): string {
-  return String(cat.id || cat._id || cat.uuid || '').trim()
+  return String(cat.id || '').trim()
 }
 
 export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}) {
@@ -39,19 +36,19 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
   const [selectedCategorias, setSelectedCategorias] = useState<CategoriaItem[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [isSuggesting, startSuggestTransition] = useTransition()
 
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const catData = await getCategoriasAdmin()
-        const categorias = Array.isArray(catData) ? catData : []
-        setCategoriasDB(categorias)
+        const catData = await getCategoriasAprobadasAction()
+        setCategoriasDB(catData)
 
         if (initialCategorias && initialCategorias.length > 0) {
           const initialIds = getInitialCategoriaIds(initialCategorias)
-          const matchedCats = categorias.filter((cat) => initialIds.includes(getCategoriaId(cat)))
+          const matchedCats = catData.filter((cat) => initialIds.includes(getCategoriaId(cat)))
 
           if (matchedCats.length > 0) {
             setSelectedCategorias(matchedCats)
@@ -89,13 +86,35 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
     setSelectedCategorias(selectedCategorias.filter((c) => getCategoriaId(c) !== catId))
   }
 
+  const handleSuggestCategoria = () => {
+    const trimmed = searchTerm.trim()
+    if (!trimmed) return
+
+    startSuggestTransition(async () => {
+      const result = await sugerirCategoriaAction(trimmed)
+      if (result.success) {
+        toastSuccess(USER_MSG.success.categoriaSuggested)
+        setSearchTerm('')
+        setShowDropdown(false)
+      } else {
+        toastError(USER_MSG.error.suggestCategoria, result.error)
+      }
+    })
+  }
+
   const selectedIds = new Set(selectedCategorias.map(getCategoriaId))
+  const normalizedSearch = searchTerm.trim().toLowerCase()
 
   const filteredCategorias = categoriasDB.filter(
     (cat) =>
-      cat.nombre.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      !selectedIds.has(getCategoriaId(cat)),
+      cat.nombre.toLowerCase().includes(normalizedSearch) && !selectedIds.has(getCategoriaId(cat)),
   )
+
+  const hasExactMatch =
+    normalizedSearch.length > 0 &&
+    categoriasDB.some((cat) => cat.nombre.toLowerCase() === normalizedSearch)
+
+  const canSuggest = normalizedSearch.length > 0 && !hasExactMatch
 
   return (
     <div className="space-y-6">
@@ -189,6 +208,20 @@ export function TaxonomySection({ initialCategorias }: TaxonomySectionProps = {}
                   {cat.nombre}
                 </button>
               ))
+            ) : canSuggest ? (
+              <div className="space-y-2 p-3">
+                <p className="text-sm text-gray-500">No se encontraron categorías aprobadas.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSuggesting}
+                  onClick={handleSuggestCategoria}
+                  className="w-full"
+                >
+                  {isSuggesting ? 'Enviando...' : `Sugerir «${searchTerm.trim()}»`}
+                </Button>
+              </div>
             ) : (
               <p className="px-4 py-3 text-sm text-gray-500">
                 {loading ? 'Cargando categorías...' : 'No se encontraron categorías.'}

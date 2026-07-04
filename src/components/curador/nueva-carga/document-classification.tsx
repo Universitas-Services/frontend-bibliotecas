@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, ChevronRight } from 'lucide-react'
 
 import {
@@ -26,6 +26,7 @@ import {
   isVirtualJurisprudenciaRamaId,
 } from '@/lib/jurisprudencia-classification'
 import { resolveMetadataSchemaKey } from '@/lib/metadata-schemas'
+import { restoreCarpetaLevelsFromLeaf } from '@/lib/carpeta-path-restore'
 import { getTipoNormaDisplayName } from '@/lib/temas-taxonomy'
 
 export interface ClassificationValues {
@@ -68,10 +69,29 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
 
   const [loadingTemas, setLoadingTemas] = useState(true)
   const [loadingTiposDoc, setLoadingTiposDoc] = useState(false)
+  const pendingLeafRestoreRef = useRef(initialValues?.carpetaInternaId || '')
 
-  async function loadRootCarpetas(subcarpetaId: string) {
+  async function loadRootCarpetas(subcarpetaId: string, leafCarpetaIdToRestore?: string) {
+    const leafToRestore = leafCarpetaIdToRestore?.trim()
+
+    if (leafToRestore) {
+      setCarpetaLevels([{ options: [], selectedId: '', loading: true }])
+      try {
+        const restored = await restoreCarpetaLevelsFromLeaf(subcarpetaId, leafToRestore)
+        if (restored.levels.length > 0) {
+          setCarpetaLevels(restored.levels)
+          setLeafCarpetaId(restored.leafId)
+          return
+        }
+      } catch (error) {
+        console.error('Error al restaurar path de carpetas:', error)
+      }
+    }
+
     setCarpetaLevels([{ options: [], selectedId: '', loading: true }])
-    setLeafCarpetaId('')
+    if (!leafToRestore) {
+      setLeafCarpetaId('')
+    }
     try {
       const data = await getTiposNormaAction(subcarpetaId)
       setCarpetaLevels([{ options: data, selectedId: '', loading: false }])
@@ -88,7 +108,9 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
         const temasList = Array.isArray(data) ? data : []
         setTemas(temasList)
 
-        if (!selectedTema && initialValues?.temaPrincipalNombre) {
+        if (!selectedTema && initialValues?.temaPrincipalId) {
+          setSelectedTema(initialValues.temaPrincipalId)
+        } else if (!selectedTema && initialValues?.temaPrincipalNombre) {
           const match = temasList.find((t) => t.nombre === initialValues.temaPrincipalNombre)
           if (match) setSelectedTema(match.id)
         }
@@ -122,7 +144,9 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
         }
 
         if (tipoDocId) {
-          await loadRootCarpetas(tipoDocId)
+          const leafToRestore = pendingLeafRestoreRef.current
+          pendingLeafRestoreRef.current = ''
+          await loadRootCarpetas(tipoDocId, leafToRestore || undefined)
         }
       } catch (error) {
         console.error('Error al cargar tipos de documento:', error)
@@ -139,6 +163,7 @@ export function DocumentClassification({ onChange, initialValues }: DocumentClas
     setSelectedTipoDoc(newVal)
     setCarpetaLevels([])
     setLeafCarpetaId('')
+    pendingLeafRestoreRef.current = ''
     if (newVal) {
       void loadRootCarpetas(newVal)
     }

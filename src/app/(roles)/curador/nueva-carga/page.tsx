@@ -23,9 +23,10 @@ import {
   uploadReformaClient,
 } from '@/lib/document-upload-client'
 import { extractDocumentMatrices } from '@/lib/document-matrices'
+import { extractDocumentCategorias } from '@/lib/document-categorias'
+import { extractDocumentEditSnapshot } from '@/lib/document-edit-normalize'
 import {
   buildMetadatosFromForm,
-  parseMetadatosObject,
   resolveMetadataSchemaKey,
   requiresPaisField,
 } from '@/lib/metadata-schemas'
@@ -44,6 +45,7 @@ import { MetadataFormDynamic } from '@/components/curador/nueva-carga/metadata-f
 import { UniversalMetadataSection } from '@/components/curador/nueva-carga/universal-metadata-section'
 import { ReformAlert } from '@/components/curador/nueva-carga/reform-alert'
 import { SeoSection } from '@/components/curador/nueva-carga/seo-section'
+import { EtiquetasSection } from '@/components/curador/nueva-carga/etiquetas-section'
 import { TaxonomySection } from '@/components/curador/nueva-carga/taxonomy-section'
 import { UploadZone } from '@/components/curador/nueva-carga/upload-zone'
 import { CuradorBottomBar } from '@/components/curador/curador-bottom-bar'
@@ -52,41 +54,12 @@ import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-type InitialCategoria = string | { id?: string; _id?: string; nombre?: string }
-
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
 function readBoolean(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined
-}
-
-function readInitialCategorias(value: unknown): InitialCategoria[] | undefined {
-  if (!Array.isArray(value)) return undefined
-
-  return value.filter(
-    (item): item is InitialCategoria =>
-      typeof item === 'string' || (typeof item === 'object' && item !== null),
-  )
-}
-
-function readEtiquetas(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map(String).filter((item) => item.trim())
-  }
-  if (typeof value === 'string' && value.trim()) {
-    try {
-      const parsed = JSON.parse(value) as unknown
-      if (Array.isArray(parsed)) return parsed.map(String).filter((item) => item.trim())
-    } catch {
-      return value
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-    }
-  }
-  return []
 }
 
 function prepareOutboundForm(
@@ -98,9 +71,6 @@ function prepareOutboundForm(
 
   if (!outbound.get('titulo') && tituloIntegro) {
     outbound.set('titulo', tituloIntegro)
-  }
-  if (!outbound.get('nombreBreve')) {
-    outbound.set('nombreBreve', tituloIntegro || 'Sin alias')
   }
 
   if (classification.tipoDocumentoId) {
@@ -140,6 +110,8 @@ export default function NuevaCargaPage() {
   })
 
   const [metadatosValues, setMetadatosValues] = useState<Record<string, string>>({})
+  const [editEtiquetas, setEditEtiquetas] = useState<string[]>([])
+  const [editKeywords, setEditKeywords] = useState<string[]>([])
   const prevTipoDocumentoRef = useRef('')
 
   const handleClassificationChange = useCallback((values: ClassificationValues) => {
@@ -180,16 +152,29 @@ export default function NuevaCargaPage() {
             setShouldReenviar(true)
           }
 
-          setClassification((prev) => ({
-            ...prev,
-            tipoDocumentoId: readString(documento.subcarpetaNormaId) || prev.tipoDocumentoId,
-            carpetaInternaId: readString(documento.carpetaInternaId) || prev.carpetaInternaId,
-          }))
+          const snapshot = extractDocumentEditSnapshot(documento)
+          const { classification: editClassification, metadatos, etiquetas, keywords } = snapshot
 
-          const parsedMetadatos = parseMetadatosObject(documento.metadatos)
-          if (Object.keys(parsedMetadatos).length > 0) {
-            setMetadatosValues(parsedMetadatos)
+          setClassification({
+            temaPrincipalId: editClassification.temaPrincipalId || '',
+            temaPrincipalNombre: editClassification.temaPrincipalNombre || '',
+            tipoDocumentoId:
+              editClassification.tipoDocumentoId || editClassification.subcarpetaNormaId || '',
+            tipoDocumentoNombre: editClassification.tipoDocumentoNombre || '',
+            carpetaInternaId: editClassification.carpetaInternaId || '',
+            carpetaPathNames: editClassification.carpetaPathNames || [],
+          })
+
+          if (editClassification.tipoDocumentoId) {
+            prevTipoDocumentoRef.current = editClassification.tipoDocumentoId
           }
+
+          if (Object.keys(metadatos).length > 0) {
+            setMetadatosValues(metadatos)
+          }
+
+          setEditEtiquetas(etiquetas)
+          setEditKeywords(keywords)
         } else {
           toastError(USER_MSG.error.loadDocument, docRes.error)
         }
@@ -215,20 +200,14 @@ export default function NuevaCargaPage() {
     }
 
     const form = formRef.current ?? event.currentTarget
-    const outbound = prepareOutboundForm(form, classification)
-    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
-    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
+    const rawFormData = new FormData(form)
 
-    if (!primaryFile && !editId) {
-      toastError(USER_MSG.validation.selectFilePublish)
-      return
-    }
-
-    const categorias = outbound.getAll('categoriaIds')
-
-    const validationIssues = validateDocumentUploadForm(outbound, {
-      schemaKey,
-      metadatosValues,
+    const validationIssues = validateDocumentUploadForm(rawFormData, {
+      classification: {
+        temaPrincipalId: classification.temaPrincipalId,
+        tipoDocumentoId: classification.tipoDocumentoId,
+        carpetaInternaId: classification.carpetaInternaId,
+      },
     })
 
     if (validationIssues.length > 0) {
@@ -239,6 +218,16 @@ export default function NuevaCargaPage() {
       return
     }
 
+    const outbound = prepareOutboundForm(form, classification)
+    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
+    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
+
+    if (!primaryFile && !editId) {
+      toastError(USER_MSG.validation.selectFilePublish)
+      return
+    }
+
+    const categorias = outbound.getAll('categoriaIds')
     const isReforma = outbound.get('esReforma') === 'true'
     const leyViejaId = String(outbound.get('leyViejaId') ?? '').trim()
 
@@ -332,24 +321,16 @@ export default function NuevaCargaPage() {
   const handleSaveBorrador = () => {
     if (isPending) return
 
-    if (!selectedFile && !editId) {
-      toastError(USER_MSG.validation.selectFileDraft)
-      return
-    }
-
     const form = formRef.current
     if (!form) return
 
-    const outbound = prepareOutboundForm(form, classification)
-    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
-    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
+    const rawFormData = new FormData(form)
 
-    if (!primaryFile && !editId) {
-      toastError(USER_MSG.validation.selectFileDraft)
-      return
-    }
-
-    const validationIssues = validateBorradorForm(outbound)
+    const validationIssues = validateBorradorForm(rawFormData, {
+      temaPrincipalId: classification.temaPrincipalId,
+      tipoDocumentoId: classification.tipoDocumentoId,
+      carpetaInternaId: classification.carpetaInternaId,
+    })
 
     if (validationIssues.length > 0) {
       toast.error(USER_MSG.validation.requiredFields, {
@@ -358,6 +339,10 @@ export default function NuevaCargaPage() {
       })
       return
     }
+
+    const outbound = prepareOutboundForm(form, classification)
+    const primaryFile = resolvePrimaryUploadFile(selectedFile, outbound)
+    const gacetaFile = resolveGacetaUploadFile(selectedGacetaFile, outbound)
 
     startTransition(async () => {
       const categorias = outbound.getAll('categoriaIds')
@@ -412,6 +397,12 @@ export default function NuevaCargaPage() {
   }
 
   const documento = initialData?.documento
+  const editSnapshot = documento ? extractDocumentEditSnapshot(documento) : null
+  const initialCategorias = documento
+    ? extractDocumentCategorias(documento).map((cat) => ({ id: cat.id, nombre: cat.nombre }))
+    : undefined
+  const initialEtiquetas = documento ? editEtiquetas : []
+  const initialKeywords = documento ? editKeywords : []
   const ocrFromDoc = readBoolean(documento?.ocrHabilitado)
   const ocrLegacy = documento?.soloLecturaImagen
   const initialOcr =
@@ -452,10 +443,13 @@ export default function NuevaCargaPage() {
               <DocumentClassification
                 onChange={handleClassificationChange}
                 initialValues={
-                  documento
+                  editSnapshot
                     ? {
-                        subcarpetaNormaId: readString(documento.subcarpetaNormaId),
-                        carpetaInternaId: readString(documento.carpetaInternaId),
+                        ...editSnapshot.classification,
+                        subcarpetaNormaId:
+                          editSnapshot.classification.subcarpetaNormaId ||
+                          editSnapshot.classification.tipoDocumentoId,
+                        carpetaInternaId: editSnapshot.classification.carpetaInternaId,
                       }
                     : undefined
                 }
@@ -482,7 +476,12 @@ export default function NuevaCargaPage() {
             </Card>
 
             <Card className="p-8 shadow-sm">
-              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Identificación legal</h2>
+              <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
+                Identificación legal
+                <span className="rounded-sm bg-red-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-700 uppercase">
+                  Requerido
+                </span>
+              </h2>
               <LegalIdentification
                 initialValues={
                   documento
@@ -497,12 +496,7 @@ export default function NuevaCargaPage() {
             </Card>
 
             <Card className="p-8 shadow-sm">
-              <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
-                Metadatos universales
-                <span className="rounded-sm bg-red-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-700 uppercase">
-                  Requerido
-                </span>
-              </h2>
+              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Metadatos universales</h2>
               <UniversalMetadataSection
                 hidePais={!requiresPaisField(schemaKey)}
                 initialValues={
@@ -518,12 +512,7 @@ export default function NuevaCargaPage() {
             </Card>
 
             <Card className="p-8 shadow-sm">
-              <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-[#00315C]">
-                Metadatos específicos
-                <span className="rounded-sm bg-red-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-700 uppercase">
-                  Requerido
-                </span>
-              </h2>
+              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Metadatos específicos</h2>
               <MetadataFormDynamic
                 key={schemaKey || 'pending-schema'}
                 schemaKey={schemaKey}
@@ -535,13 +524,14 @@ export default function NuevaCargaPage() {
             </Card>
 
             <Card className="p-8 shadow-sm">
-              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Categorías</h2>
-              <TaxonomySection
-                initialCategorias={
-                  readInitialCategorias(documento?.categorias) ||
-                  readInitialCategorias(documento?.categoriaIds)
-                }
-              />
+              <h2 className="mb-6 text-xl font-bold text-[#00315C]">Categorías y etiquetas</h2>
+              <div className="space-y-8">
+                <TaxonomySection initialCategorias={initialCategorias} />
+                <EtiquetasSection
+                  key={`etiquetas-${editId || 'new'}`}
+                  initialEtiquetas={initialEtiquetas}
+                />
+              </div>
             </Card>
 
             <Card className="p-8 shadow-sm">
@@ -557,7 +547,7 @@ export default function NuevaCargaPage() {
               <SeoSection
                 key={editId || 'new-document'}
                 initialResumen={readString(documento?.resumen) || ''}
-                initialEtiquetas={readEtiquetas(documento?.etiquetas ?? documento?.keywords)}
+                initialKeywords={initialKeywords}
               />
             </Card>
           </div>
