@@ -6,7 +6,7 @@ import { DocumentPagination } from './document-pagination'
 import { getCuradorDocumentsAction } from '@/app/actions/curador-documents'
 import { getDocumentosConNotasAction } from '@/app/actions/notas-internas'
 import { Button } from '@/components/ui/button'
-import { mapBackendStatus, type DocumentFilterId } from '@/lib/document-status'
+import { mapDocumentStatus, type DocumentFilterId } from '@/lib/document-status'
 
 type DocumentListProps = {
   estado?: DocumentFilterId
@@ -22,8 +22,6 @@ function mapDocument(
   doc: Record<string, unknown>,
   notasPorDocumento: NotasPorDocumento,
 ): DocumentData {
-  const backendStatus = typeof doc.estado === 'string' ? doc.estado : ''
-
   let fecha = 'Sin fecha'
   if (doc.ultimaActualizacion && typeof doc.ultimaActualizacion === 'string') {
     fecha = new Date(doc.ultimaActualizacion).toLocaleDateString('es-ES')
@@ -47,7 +45,7 @@ function mapDocument(
     id,
     title: String(doc.titulo || doc.tituloIntegro || 'Documento sin título'),
     subtitle: String(doc.resumen || doc.nombreBreve || 'Sin descripción disponible'),
-    status: mapBackendStatus(backendStatus),
+    status: mapDocumentStatus(doc),
     revisor,
     fecha,
     tieneNotas: Boolean(notasInfo),

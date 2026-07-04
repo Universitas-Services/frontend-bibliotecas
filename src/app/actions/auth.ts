@@ -5,21 +5,17 @@ import { redirect } from 'next/navigation'
 
 import { getApiBaseUrl } from '@/lib/api'
 import { getHomePathForRole, getRoleFromToken } from '@/lib/auth'
-import { MUST_CHANGE_PASSWORD_COOKIE } from '@/lib/auth-cookies'
+import {
+  ACCESS_TOKEN_COOKIE,
+  buildAccessTokenCookieOptions,
+  MUST_CHANGE_PASSWORD_COOKIE,
+} from '@/lib/auth-cookies'
 import { validateNewPassword, validatePasswordConfirmation } from '@/lib/password-validation'
 import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
 import { isValidRedirectForRole } from '@/lib/route-guards'
 
-const TOKEN_MAX_AGE = 60 * 60 * 24 * 7
-
 function setAccessTokenCookie(cookieStore: Awaited<ReturnType<typeof cookies>>, token: string) {
-  cookieStore.set('access_token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: TOKEN_MAX_AGE,
-  })
+  cookieStore.set(ACCESS_TOKEN_COOKIE, token, buildAccessTokenCookieOptions(token))
 }
 
 function setMustChangePasswordCookie(
@@ -41,7 +37,7 @@ function setMustChangePasswordCookie(
 }
 
 function clearAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  cookieStore.delete('access_token')
+  cookieStore.delete(ACCESS_TOKEN_COOKIE)
   cookieStore.delete(MUST_CHANGE_PASSWORD_COOKIE)
 }
 
@@ -62,11 +58,17 @@ function mapChangePasswordError(status: number, data: Record<string, unknown>): 
   }
 }
 
+export type LoginState = {
+  error: string | null
+  redirectTo?: string
+}
+
 export type ChangePasswordState = {
   success?: boolean
   error?: string
   message?: string
   sessionExpired?: boolean
+  redirectTo?: string
 }
 
 export type ForgotPasswordState = {
@@ -99,7 +101,10 @@ function mapResetPasswordError(status: number, data: Record<string, unknown>): s
   }
 }
 
-export async function loginAction(prevState: unknown, formData: FormData) {
+export async function loginAction(
+  _prevState: LoginState | null,
+  formData: FormData,
+): Promise<LoginState> {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const redirectTo = formData.get('redirect') as string | null
@@ -147,18 +152,15 @@ export async function loginAction(prevState: unknown, formData: FormData) {
     }
 
     if (mustChangePassword) {
-      redirect('/auth/change-password')
+      return { error: null, redirectTo: '/auth/change-password' }
     }
 
     if (redirectTo && isValidRedirectForRole(redirectTo, role)) {
-      redirect(redirectTo)
+      return { error: null, redirectTo }
     }
 
-    redirect(getHomePathForRole(role))
+    return { error: null, redirectTo: getHomePathForRole(role) }
   } catch (error) {
-    if ((error as Error).message === 'NEXT_REDIRECT') {
-      throw error
-    }
     console.error('Login error:', error)
     return { error: 'Ocurrió un error al intentar iniciar sesión. Revise su conexión.' }
   }
@@ -166,7 +168,7 @@ export async function loginAction(prevState: unknown, formData: FormData) {
 
 export async function logoutAction() {
   const cookieStore = await cookies()
-  const token = cookieStore.get('access_token')?.value
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
 
   if (token) {
     try {
@@ -219,7 +221,7 @@ export async function changePasswordAction(
   }
 
   const cookieStore = await cookies()
-  const token = cookieStore.get('access_token')?.value
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
 
   if (!token) {
     return { sessionExpired: true, error: 'Tu sesión expiró. Por favor vuelve a iniciar sesión.' }
@@ -263,7 +265,7 @@ export async function changePasswordAction(
     setMustChangePasswordCookie(cookieStore, false)
 
     if (isFirstLogin) {
-      redirect(getHomePathForRole(role))
+      return { error: undefined, redirectTo: getHomePathForRole(role) }
     }
 
     return {
@@ -272,10 +274,6 @@ export async function changePasswordAction(
         typeof data.message === 'string' ? data.message : 'Contraseña actualizada exitosamente.',
     }
   } catch (error) {
-    if ((error as Error).message === 'NEXT_REDIRECT') {
-      throw error
-    }
-
     console.error('Change password error:', error)
     return { error: 'Ocurrió un error al actualizar la contraseña. Revise su conexión.' }
   }

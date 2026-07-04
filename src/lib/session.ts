@@ -2,8 +2,12 @@ import { cookies } from 'next/headers'
 
 import { getUserMeAction } from '@/app/actions/profile'
 import { decodeJwt, isTokenExpired } from '@/lib/auth'
+import {
+  ACCESS_TOKEN_COOKIE,
+  isMustChangePasswordActive,
+  MUST_CHANGE_PASSWORD_COOKIE,
+} from '@/lib/auth-cookies'
 import { isE2eTestMode } from '@/lib/e2e-test'
-import { isMustChangePasswordActive, MUST_CHANGE_PASSWORD_COOKIE } from '@/lib/auth-cookies'
 import {
   buildInitials,
   mapMeToSessionUser,
@@ -62,9 +66,13 @@ function getSessionUserFromJwt(token: string, mustChangePassword = false): Sessi
 
 export async function getSessionUser(): Promise<GetSessionUserResult> {
   const cookieStore = await cookies()
-  const token = cookieStore.get('access_token')?.value
+  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
 
-  if (!token || isTokenExpired(token)) {
+  if (!token) {
+    return { user: null, sessionInvalid: true }
+  }
+
+  if (isTokenExpired(token)) {
     return { user: null, sessionInvalid: true }
   }
 

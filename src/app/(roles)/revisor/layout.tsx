@@ -9,7 +9,7 @@ export default async function RevisorLayout({ children }: { children: React.Reac
   const session = await getSessionUser()
 
   if (session.sessionInvalid) {
-    redirect('/login?logout=1')
+    redirect('/login?logout=1&authReason=profile')
   }
 
   return (

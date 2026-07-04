@@ -47,7 +47,7 @@ const ENTE_EMISOR_METADATA_KEYS = [
   'sala',
   'funcionarioFirmante',
   'ambitoGeografico',
-  'estado',
+  'estadoGeografico',
   'municipio',
   'remitente',
 ]

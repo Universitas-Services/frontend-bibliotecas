@@ -1,10 +1,25 @@
 import { describe, expect, it } from 'vitest'
 
-import { decodeJwt, getHomePathForRole, getRoleFromToken, isTokenExpired } from '@/lib/auth'
+import {
+  decodeBase64Url,
+  decodeJwt,
+  getCookieMaxAgeFromToken,
+  getHomePathForRole,
+  getRoleFromToken,
+  isTokenExpired,
+} from '@/lib/auth'
 
 function createTestJwt(payload: Record<string, unknown>): string {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64')
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64')
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+  const body = Buffer.from(JSON.stringify(payload))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
   return `${header}.${body}.signature`
 }
 
@@ -16,6 +31,30 @@ describe('auth', () => {
 
   it('returns null for invalid JWT', () => {
     expect(decodeJwt('invalid')).toBeNull()
+  })
+
+  it('decodes base64url JWT segments', () => {
+    const token = createTestJwt({ role: 'CURADOR', sub: 'user-1' })
+    expect(decodeBase64Url(token.split('.')[1])).toContain('CURADOR')
+    expect(decodeJwt(token)).toEqual({ role: 'CURADOR', sub: 'user-1' })
+  })
+
+  it('does not treat undecodable tokens as expired', () => {
+    expect(isTokenExpired('invalid')).toBe(false)
+  })
+
+  it('supports roles as array', () => {
+    expect(getRoleFromToken(createTestJwt({ roles: ['CURADOR'] }))).toBe('CURADOR')
+  })
+
+  it('aligns cookie maxAge with JWT exp', () => {
+    const token = createTestJwt({
+      role: 'CURADOR',
+      exp: Math.floor(Date.now() / 1000) + 120,
+    })
+    const maxAge = getCookieMaxAgeFromToken(token, 60 * 60 * 24 * 7)
+    expect(maxAge).toBeGreaterThan(100)
+    expect(maxAge).toBeLessThanOrEqual(120)
   })
 
   it('extracts role from token', () => {

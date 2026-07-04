@@ -6,7 +6,7 @@ export default async function AdminPerfilPage() {
   const session = await getSessionUser()
 
   if (session.sessionInvalid) {
-    redirect('/login?logout=1')
+    redirect('/login?logout=1&authReason=profile')
   }
 
   if (!session.user) {

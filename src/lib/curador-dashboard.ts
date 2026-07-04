@@ -1,4 +1,4 @@
-import { mapBackendStatus, type DocumentStatus } from '@/lib/document-status'
+import { mapDocumentStatus, type DocumentStatus } from '@/lib/document-status'
 
 export type DashboardDocument = {
   id: string
@@ -30,7 +30,7 @@ export function mapToDashboardDocument(doc: Record<string, unknown>): DashboardD
     id: String(doc.id || doc._id || ''),
     title: String(doc.titulo || doc.tituloIntegro || 'Documento sin título'),
     subtitle: String(doc.resumen || doc.nombreBreve || 'Sin descripción'),
-    status: mapBackendStatus(readString(doc.estado)),
+    status: mapDocumentStatus(doc),
     fecha,
     timestamp,
   }

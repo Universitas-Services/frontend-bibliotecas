@@ -4,6 +4,7 @@ import { buildDocumentMultipartPayload } from '@/lib/document-form-data'
 import {
   buildMetadatosFromForm,
   METADATA_SCHEMAS,
+  normalizeGeographicMetadatos,
   requiresPaisField,
   resolveMetadataSchemaKey,
 } from '@/lib/metadata-schemas'
@@ -30,7 +31,7 @@ describe('metadata-schemas', () => {
     const schema = METADATA_SCHEMAS['legislacion-municipal']
     expect(schema.fields.some((field) => field.key === 'parroquia')).toBe(false)
     expect(schema.fields.map((field) => field.key)).toEqual([
-      'estado',
+      'estadoGeografico',
       'municipio',
       'rango',
       'numeroGacetaMunicipal',
@@ -59,7 +60,7 @@ describe('metadata-schemas', () => {
   it('cascada tribunales: estado, municipio opcional y tribunal', () => {
     const schema = METADATA_SCHEMAS['jurisprudencia-tribunales']
     expect(schema.fields.slice(0, 3).map((field) => field.key)).toEqual([
-      'estado',
+      'estadoGeografico',
       'municipio',
       'tribunal',
     ])
@@ -85,7 +86,7 @@ describe('metadata-schemas', () => {
 
   it('persiste pares id+nombre en metadatos territoriales', () => {
     const result = buildMetadatosFromForm('legislacion-municipal', {
-      estado: 'Miranda',
+      estadoGeografico: 'Miranda',
       estadoId: '14',
       municipio: 'Baruta',
       municipioId: '102',
@@ -94,7 +95,8 @@ describe('metadata-schemas', () => {
       fechaPromulgacion: '2024-05-12',
     })
 
-    expect(result.estado).toBe('Miranda')
+    expect(result.estadoGeografico).toBe('Miranda')
+    expect(result.estado).toBeUndefined()
     expect(result.estadoId).toBe(14)
     expect(result.municipio).toBe('Baruta')
     expect(result.municipioId).toBe(102)
@@ -106,6 +108,18 @@ describe('metadata-schemas', () => {
     expect(requiresPaisField('instrumentos-internacionales')).toBe(false)
     expect(requiresPaisField('jurisprudencia-internacional')).toBe(false)
     expect(requiresPaisField('legislacion-municipal')).toBe(true)
+  })
+
+  it('migra legacy estado geográfico a estadoGeografico', () => {
+    expect(
+      normalizeGeographicMetadatos({
+        estado: 'Lara',
+        municipio: 'Palavecino',
+      }),
+    ).toEqual({
+      estadoGeografico: 'Lara',
+      municipio: 'Palavecino',
+    })
   })
 })
 

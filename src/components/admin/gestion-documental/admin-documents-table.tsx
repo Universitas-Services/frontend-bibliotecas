@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { mapBackendStatus, DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
+import { mapDocumentStatus, DOCUMENT_STATUS_STYLES } from '@/lib/document-status'
 import type { DocumentFilterId } from '@/lib/document-status'
 
 const ADMIN_DOCUMENT_FILTER_TABS: { id: DocumentFilterId; label: string }[] = [
@@ -154,7 +154,7 @@ export function AdminDocumentsTable({
       ) : (
         <div className="space-y-4">
           {documents.map((doc) => {
-            const status = mapBackendStatus(doc.estado)
+            const status = mapDocumentStatus(doc as Record<string, unknown>)
             const styles = DOCUMENT_STATUS_STYLES[status]
             const Icon = STATUS_ICONS[status]
 

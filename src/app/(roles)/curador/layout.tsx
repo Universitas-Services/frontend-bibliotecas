@@ -11,7 +11,7 @@ export default async function CuradorLayout({ children }: { children: React.Reac
   const session = await getSessionUser()
 
   if (session.sessionInvalid) {
-    redirect('/login?logout=1')
+    redirect('/login?logout=1&authReason=profile')
   }
 
   return (

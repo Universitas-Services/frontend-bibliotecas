@@ -10,7 +10,7 @@ import { USER_MSG } from '@/lib/user-messages'
 import { getDocumentByIdAction } from '@/app/actions/documents'
 import { publicarBorradorAction } from '@/app/actions/curador-documents'
 import { getNotasByDocumentoAction } from '@/app/actions/notas-internas'
-import { mapBackendStatus } from '@/lib/document-status'
+import { mapDocumentStatus, type DocumentStatus } from '@/lib/document-status'
 import {
   buildDocumentMultipartPayload,
   resolveGacetaUploadFile,
@@ -112,6 +112,7 @@ export default function NuevaCargaPage() {
   const [metadatosValues, setMetadatosValues] = useState<Record<string, string>>({})
   const [editEtiquetas, setEditEtiquetas] = useState<string[]>([])
   const [editKeywords, setEditKeywords] = useState<string[]>([])
+  const [editDocumentStatus, setEditDocumentStatus] = useState<DocumentStatus | null>(null)
   const prevTipoDocumentoRef = useRef('')
 
   const handleClassificationChange = useCallback((values: ClassificationValues) => {
@@ -146,9 +147,10 @@ export default function NuevaCargaPage() {
           const documento = (docRes.data ?? {}) as Record<string, unknown>
           setInitialData({ documento })
 
-          const estado = mapBackendStatus(String(documento.estado || ''))
+          const status = mapDocumentStatus(documento)
+          setEditDocumentStatus(status)
           const tieneNotas = notasRes.success && notasRes.data.length > 0
-          if (!reenviarFromUrl && estado === 'borrador' && tieneNotas) {
+          if (!reenviarFromUrl && status === 'borrador' && tieneNotas) {
             setShouldReenviar(true)
           }
 
@@ -201,14 +203,23 @@ export default function NuevaCargaPage() {
 
     const form = formRef.current ?? event.currentTarget
     const rawFormData = new FormData(form)
+    const metadatosForValidation = buildMetadatosFromForm(schemaKey, metadatosValues)
+    const isEditingEnRevision = Boolean(editId && editDocumentStatus === 'en-revision')
 
-    const validationIssues = validateDocumentUploadForm(rawFormData, {
-      classification: {
-        temaPrincipalId: classification.temaPrincipalId,
-        tipoDocumentoId: classification.tipoDocumentoId,
-        carpetaInternaId: classification.carpetaInternaId,
-      },
-    })
+    const validationIssues = isEditingEnRevision
+      ? validateBorradorForm(rawFormData, {
+          temaPrincipalId: classification.temaPrincipalId,
+          tipoDocumentoId: classification.tipoDocumentoId,
+          carpetaInternaId: classification.carpetaInternaId,
+        })
+      : validateDocumentUploadForm(rawFormData, {
+          classification: {
+            temaPrincipalId: classification.temaPrincipalId,
+            tipoDocumentoId: classification.tipoDocumentoId,
+            carpetaInternaId: classification.carpetaInternaId,
+          },
+          metadatos: metadatosForValidation,
+        })
 
     if (validationIssues.length > 0) {
       toast.error(USER_MSG.validation.requiredFields, {
@@ -294,7 +305,12 @@ export default function NuevaCargaPage() {
         return
       }
 
-      if (editId && shouldReenviar) {
+      const isEditingBorrador = Boolean(
+        editId && editDocumentStatus === 'borrador' && !shouldReenviar,
+      )
+      const shouldPublishBorrador = Boolean((editId && shouldReenviar) || isEditingBorrador)
+
+      if (shouldPublishBorrador) {
         const publicarResult = await publicarBorradorAction(documentoId, {
           subcarpetaNormaId: classification.tipoDocumentoId || '',
           carpetaInternaId: classification.carpetaInternaId || undefined,
@@ -302,19 +318,43 @@ export default function NuevaCargaPage() {
         })
         if (!publicarResult.success) {
           toastWarning(
-            USER_MSG.error.partialResubmit,
+            USER_MSG.error.publishDocument,
             [publicarResult.error, publicarResult.details].filter(Boolean).join('\n'),
             { duration: 15000 },
           )
-          setTimeout(() => router.push('/curador/gestion-documental'), 800)
+          setTimeout(
+            () =>
+              router.push(
+                isEditingBorrador || shouldReenviar
+                  ? '/curador/gestion-documental?estado=borradores'
+                  : '/curador/gestion-documental',
+              ),
+            800,
+          )
           return
         }
-        toastSuccess(USER_MSG.success.documentCorrected)
+
+        if (shouldReenviar) {
+          toastSuccess(USER_MSG.success.documentCorrected)
+        } else if (isEditingBorrador) {
+          toastSuccess(USER_MSG.success.draftPublished)
+        } else {
+          toastSuccess(USER_MSG.success.documentUploaded)
+        }
+      } else if (editId) {
+        toastSuccess(USER_MSG.success.documentUpdated)
       } else {
-        toastSuccess(editId ? USER_MSG.success.documentUpdated : USER_MSG.success.documentUploaded)
+        toastSuccess(USER_MSG.success.documentUploaded)
       }
 
-      setTimeout(() => router.push('/curador/gestion-documental'), 800)
+      const redirectUrl =
+        !editId || shouldPublishBorrador || editDocumentStatus === 'rechazado'
+          ? '/curador/gestion-documental?estado=en-revision'
+          : editDocumentStatus === 'en-revision'
+            ? '/curador/gestion-documental?estado=en-revision'
+            : '/curador/gestion-documental?estado=borradores'
+
+      setTimeout(() => router.push(redirectUrl), 800)
     })
   }
 
@@ -407,6 +447,35 @@ export default function NuevaCargaPage() {
   const ocrLegacy = documento?.soloLecturaImagen
   const initialOcr =
     ocrFromDoc !== undefined ? ocrFromDoc : ocrLegacy !== undefined ? !ocrLegacy : true
+
+  const isEditingBorrador = Boolean(editId && editDocumentStatus === 'borrador' && !shouldReenviar)
+  const isEditingEnRevision = Boolean(editId && editDocumentStatus === 'en-revision')
+  const isEditingRechazado = Boolean(editId && editDocumentStatus === 'rechazado')
+  const showSaveDraftButton = !isEditingEnRevision && !isEditingRechazado
+
+  const secondaryButtonLabel = editId
+    ? isEditingBorrador || shouldReenviar
+      ? 'Guardar cambios'
+      : 'Guardar borrador'
+    : 'Guardar borrador'
+
+  const primaryButtonLabel = editId
+    ? shouldReenviar
+      ? 'Guardar y reenviar a revisión'
+      : isEditingBorrador
+        ? 'Enviar a revisión'
+        : isEditingRechazado
+          ? 'Corregir y reenviar'
+          : 'Guardar cambios'
+    : 'Publicar documento'
+
+  const primaryPendingLabel = editId
+    ? shouldReenviar
+      ? 'Reenviando...'
+      : isEditingBorrador
+        ? 'Enviando a revisión...'
+        : 'Actualizando...'
+    : 'Publicando...'
 
   return (
     <form
@@ -590,18 +659,25 @@ export default function NuevaCargaPage() {
             Este documento fue devuelto con correcciones. Al guardar, se reenviará automáticamente a
             revisión del administrador.
           </div>
+        ) : isEditingBorrador ? (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            Este documento es un borrador. Use &quot;Enviar a revisión&quot; cuando esté listo para
+            la cola del administrador, o &quot;Guardar cambios&quot; para seguir editándolo.
+          </div>
         ) : null}
 
         <CuradorBottomBar variant="inline">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isPending}
-            className="h-11 px-6 text-sm font-semibold"
-            onClick={handleSaveBorrador}
-          >
-            Guardar borrador
-          </Button>
+          {showSaveDraftButton ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              className="h-11 px-6 text-sm font-semibold"
+              onClick={handleSaveBorrador}
+            >
+              {secondaryButtonLabel}
+            </Button>
+          ) : null}
           <Button
             type="submit"
             disabled={isPending}
@@ -610,18 +686,10 @@ export default function NuevaCargaPage() {
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {editId && shouldReenviar
-                  ? 'Reenviando...'
-                  : editId
-                    ? 'Actualizando...'
-                    : 'Publicando...'}
+                {primaryPendingLabel}
               </>
-            ) : editId && shouldReenviar ? (
-              'Guardar y reenviar a revisión'
-            ) : editId ? (
-              'Guardar cambios'
             ) : (
-              'Publicar documento'
+              primaryButtonLabel
             )}
           </Button>
         </CuradorBottomBar>

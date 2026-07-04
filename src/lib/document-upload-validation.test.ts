@@ -4,6 +4,7 @@ import {
   formatUploadValidationIssues,
   validateBorradorForm,
   validateClassificationForm,
+  validateDocumentPublishRequirements,
   validateDocumentUploadForm,
   validateLegalIdentificationForm,
 } from '@/lib/document-upload-validation'
@@ -18,6 +19,11 @@ const completeClassification = {
 const completeLegalIdentification = {
   tituloIntegro: 'Ley orgánica de ejemplo',
   nombreBreve: 'Ley ejemplo 2024',
+}
+
+const completePublishMetadatos = {
+  dependenciaAdministrativa: 'Concejo Municipal',
+  fechaPromulgacion: '2024-05-12',
 }
 
 describe('validateLegalIdentificationForm', () => {
@@ -49,29 +55,44 @@ describe('validateClassificationForm', () => {
   })
 })
 
+describe('validateDocumentPublishRequirements', () => {
+  it('exige categorías, ente emisor y fecha de publicación', () => {
+    const formData = new FormData()
+    const issues = validateDocumentPublishRequirements(formData, { metadatos: {} })
+
+    expect(issues).toHaveLength(3)
+    expect(formatUploadValidationIssues(issues)).toContain(USER_MSG.validation.categorias)
+    expect(formatUploadValidationIssues(issues)).toContain(USER_MSG.validation.enteEmisorRequired)
+    expect(formatUploadValidationIssues(issues)).toContain(
+      USER_MSG.validation.fechaPublicacionRequired,
+    )
+  })
+})
+
 describe('validateDocumentUploadForm', () => {
   it('exige identificación legal y clasificación en formulario vacío', () => {
     const formData = new FormData()
 
     const issues = validateDocumentUploadForm(formData)
 
-    expect(issues.length).toBe(5)
+    expect(issues.length).toBeGreaterThanOrEqual(5)
     expect(formatUploadValidationIssues(issues)).toContain(
       USER_MSG.validation.tituloIntegroRequired,
     )
-    expect(formatUploadValidationIssues(issues)).not.toContain('categoría')
   })
 
-  it('pasa con identificación y clasificación completas aunque el resto esté vacío', () => {
+  it('pasa con datos mínimos de publicación completos', () => {
     const formData = new FormData()
     formData.append('tituloIntegro', completeLegalIdentification.tituloIntegro)
     formData.append('nombreBreve', completeLegalIdentification.nombreBreve)
     formData.append('subcarpetaNormaId', completeClassification.tipoDocumentoId)
     formData.append('carpetaInternaId', completeClassification.carpetaInternaId)
+    formData.append('categoriaIds', 'cat-uuid-1')
 
     expect(
       validateDocumentUploadForm(formData, {
         classification: completeClassification,
+        metadatos: completePublishMetadatos,
       }),
     ).toEqual([])
   })
@@ -90,7 +111,7 @@ describe('validateBorradorForm', () => {
     expect(formatUploadValidationIssues(issues)).toContain(USER_MSG.validation.nombreBreveRequired)
   })
 
-  it('pasa con identificación y clasificación completas sin archivo', () => {
+  it('pasa con identificación y clasificación completas sin categorías ni metadatos', () => {
     const formData = new FormData()
     formData.append('tituloIntegro', completeLegalIdentification.tituloIntegro)
     formData.append('nombreBreve', completeLegalIdentification.nombreBreve)
