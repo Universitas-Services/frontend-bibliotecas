@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
@@ -32,7 +33,9 @@ export default async function ChangePasswordPage() {
       </div>
 
       <div className="w-full max-w-[480px]">
-        <FirstLoginChangePasswordForm />
+        <Suspense>
+          <FirstLoginChangePasswordForm />
+        </Suspense>
       </div>
     </div>
   )

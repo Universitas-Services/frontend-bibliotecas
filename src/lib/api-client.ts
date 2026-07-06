@@ -2,8 +2,13 @@ import { cookies } from 'next/headers'
 
 import { getApiBaseUrl } from '@/lib/api'
 import { isTokenExpired } from '@/lib/auth'
-import { ACCESS_TOKEN_COOKIE } from '@/lib/auth-cookies'
+import {
+  ACCESS_TOKEN_COOKIE,
+  isMustChangePasswordActive,
+  MUST_CHANGE_PASSWORD_COOKIE,
+} from '@/lib/auth-cookies'
 import { toUserFacingMessage, translateBackendError, USER_MSG } from '@/lib/user-messages'
+import { refreshSessionTokens } from '@/lib/auth-refresh'
 
 export type ApiErrorCode = 'NO_TOKEN' | 'TOKEN_EXPIRED' | 'HTTP_ERROR' | 'NETWORK_ERROR'
 
@@ -233,10 +238,41 @@ export function normalizeDocumentsList(data: unknown): Record<string, unknown>[]
 export async function getBearerToken(): Promise<string | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
-  if (!token || isTokenExpired(token)) {
+  const mustChangePassword = isMustChangePasswordActive(
+    cookieStore.get(MUST_CHANGE_PASSWORD_COOKIE)?.value,
+  )
+
+  if (token && !isTokenExpired(token)) {
+    return token
+  }
+
+  // En flujo de cambio de contraseña obligatorio no existe refresh_token (según backend).
+  if (mustChangePassword) {
     return null
   }
-  return token
+
+  const refreshed = await refreshSessionTokens()
+  if (!refreshed.ok) return null
+  return refreshed.accessToken
+}
+
+async function maybeRefreshAndRetry(
+  path: string,
+  requestInit: RequestInit,
+  parse: (res: Response) => Promise<unknown>,
+): Promise<{ res: Response; data: unknown } | null> {
+  const refreshed = await refreshSessionTokens()
+  if (!refreshed.ok) return null
+
+  const headers = new Headers(requestInit.headers)
+  headers.set('Authorization', `Bearer ${refreshed.accessToken}`)
+
+  const retryRes = await fetch(`${getApiBaseUrl()}${path}`, {
+    ...requestInit,
+    headers,
+  })
+  const retryData = await parse(retryRes)
+  return { res: retryRes, data: retryData }
 }
 
 export async function getAuthFailure(): Promise<{
@@ -474,15 +510,25 @@ export async function apiPostFormData(path: string, source: FormData): Promise<A
   const body = await buildOutboundFormData(source)
 
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const requestInit: RequestInit = {
       method: 'POST',
       headers: multipartFetchHeaders(token),
       body,
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    }
 
-    const data = await parseResponseBody(res)
+    let res = await fetch(`${getApiBaseUrl()}${path}`, requestInit)
+
+    let data = await parseResponseBody(res)
+
+    if (res.status === 401) {
+      const retried = await maybeRefreshAndRetry(path, requestInit, parseResponseBody)
+      if (retried) {
+        res = retried.res
+        data = retried.data
+      }
+    }
 
     if (!res.ok) {
       const fallback =
@@ -534,7 +580,7 @@ export async function apiGet(path: string): Promise<ApiResult<unknown>> {
   }
 
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const requestInit: RequestInit = {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -542,9 +588,19 @@ export async function apiGet(path: string): Promise<ApiResult<unknown>> {
       },
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    }
 
-    const data = await parseResponseBody(res)
+    let res = await fetch(`${getApiBaseUrl()}${path}`, requestInit)
+
+    let data = await parseResponseBody(res)
+
+    if (res.status === 401) {
+      const retried = await maybeRefreshAndRetry(path, requestInit, parseResponseBody)
+      if (retried) {
+        res = retried.res
+        data = retried.data
+      }
+    }
 
     if (!res.ok) {
       const fallback =
@@ -590,7 +646,7 @@ export async function apiDelete(path: string): Promise<ApiResult<unknown>> {
   }
 
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const requestInit: RequestInit = {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -598,14 +654,24 @@ export async function apiDelete(path: string): Promise<ApiResult<unknown>> {
       },
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    }
+
+    let res = await fetch(`${getApiBaseUrl()}${path}`, requestInit)
 
     // 204 No Content is a valid success response for DELETE
     if (res.status === 204) {
       return { success: true, data: null, status: 204 }
     }
 
-    const data = await parseResponseBody(res)
+    let data = await parseResponseBody(res)
+
+    if (res.status === 401) {
+      const retried = await maybeRefreshAndRetry(path, requestInit, parseResponseBody)
+      if (retried) {
+        res = retried.res
+        data = retried.data
+      }
+    }
 
     if (!res.ok) {
       const fallback =
@@ -657,7 +723,7 @@ export async function apiPost(path: string, body: unknown): Promise<ApiResult<un
   }
 
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const requestInit: RequestInit = {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -667,9 +733,19 @@ export async function apiPost(path: string, body: unknown): Promise<ApiResult<un
       body: JSON.stringify(body),
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    }
 
-    const data = await parseResponseBody(res)
+    let res = await fetch(`${getApiBaseUrl()}${path}`, requestInit)
+
+    let data = await parseResponseBody(res)
+
+    if (res.status === 401) {
+      const retried = await maybeRefreshAndRetry(path, requestInit, parseResponseBody)
+      if (retried) {
+        res = retried.res
+        data = retried.data
+      }
+    }
 
     if (!res.ok) {
       const fallback =
@@ -723,15 +799,25 @@ export async function apiPutFormData(path: string, source: FormData): Promise<Ap
   const body = await buildOutboundFormData(source)
 
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const requestInit: RequestInit = {
       method: 'PUT',
       headers: multipartFetchHeaders(token),
       body,
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    }
 
-    const data = await parseResponseBody(res)
+    let res = await fetch(`${getApiBaseUrl()}${path}`, requestInit)
+
+    let data = await parseResponseBody(res)
+
+    if (res.status === 401) {
+      const retried = await maybeRefreshAndRetry(path, requestInit, parseResponseBody)
+      if (retried) {
+        res = retried.res
+        data = retried.data
+      }
+    }
 
     if (!res.ok) {
       const fallback =
@@ -788,15 +874,25 @@ export async function apiPatchFormData(
   const body = await buildOutboundFormData(source)
 
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const requestInit: RequestInit = {
       method: 'PATCH',
       headers: multipartFetchHeaders(token),
       body,
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    }
 
-    const data = await parseResponseBody(res)
+    let res = await fetch(`${getApiBaseUrl()}${path}`, requestInit)
+
+    let data = await parseResponseBody(res)
+
+    if (res.status === 401) {
+      const retried = await maybeRefreshAndRetry(path, requestInit, parseResponseBody)
+      if (retried) {
+        res = retried.res
+        data = retried.data
+      }
+    }
 
     if (!res.ok) {
       const fallback =
@@ -848,7 +944,7 @@ export async function apiPatch(path: string, body: unknown): Promise<ApiResult<u
   }
 
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const requestInit: RequestInit = {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -858,9 +954,19 @@ export async function apiPatch(path: string, body: unknown): Promise<ApiResult<u
       body: JSON.stringify(body),
       cache: 'no-store',
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    }
 
-    const data = await parseResponseBody(res)
+    let res = await fetch(`${getApiBaseUrl()}${path}`, requestInit)
+
+    let data = await parseResponseBody(res)
+
+    if (res.status === 401) {
+      const retried = await maybeRefreshAndRetry(path, requestInit, parseResponseBody)
+      if (retried) {
+        res = retried.res
+        data = retried.data
+      }
+    }
 
     if (!res.ok) {
       const fallback =

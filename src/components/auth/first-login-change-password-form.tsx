@@ -1,39 +1,37 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useFormStatus } from 'react-dom'
+import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, KeyRound, Lock } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { toastError } from '@/lib/toast-messages'
-import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
+import { toUserFacingMessage } from '@/lib/user-messages'
 
-import { changePasswordAction, type ChangePasswordState } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-const initialState: ChangePasswordState | null = null
+function ChangePasswordSubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button type="submit" disabled={pending} className="w-full bg-[#005496] hover:bg-[#00315C]">
+      {pending ? 'Guardando...' : 'Guardar y continuar'}
+    </Button>
+  )
+}
 
 export function FirstLoginChangePasswordForm() {
-  const router = useRouter()
-  const [state, formAction, isPending] = useActionState(changePasswordAction, initialState)
+  const searchParams = useSearchParams()
+  const changePasswordError = searchParams.get('changePasswordError')
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
 
   useEffect(() => {
-    if (state?.error) {
-      toastError('No pudimos actualizar la contraseña', toUserFacingMessage(state.error))
-    }
-
-    if (state?.sessionExpired) {
-      toastError(USER_MSG.common.sessionExpired)
-      router.replace('/login?logout=1')
-    }
-
-    if (state?.redirectTo) {
-      window.location.assign(state.redirectTo)
-    }
-  }, [state, router])
+    if (!changePasswordError) return
+    toastError('No pudimos actualizar la contraseña', toUserFacingMessage(changePasswordError))
+  }, [changePasswordError])
 
   return (
     <Card className="border-amber-200 shadow-lg ring-1 ring-amber-100">
@@ -52,7 +50,7 @@ export function FirstLoginChangePasswordForm() {
         </div>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-5">
+        <form method="POST" action="/api/auth/change-password" className="space-y-5">
           <input type="hidden" name="flow" value="first-login" />
 
           <div className="space-y-2">
@@ -105,13 +103,7 @@ export function FirstLoginChangePasswordForm() {
             <p className="text-xs text-slate-500">Mínimo 8 caracteres.</p>
           </div>
 
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-[#005496] hover:bg-[#00315C]"
-          >
-            {isPending ? 'Guardando...' : 'Guardar y continuar'}
-          </Button>
+          <ChangePasswordSubmitButton />
         </form>
       </CardContent>
     </Card>

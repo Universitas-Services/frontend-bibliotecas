@@ -50,6 +50,7 @@ describe('logoutAction', () => {
       }),
     )
     expect(cookiesMock.delete).toHaveBeenCalledWith('access_token')
+    expect(cookiesMock.delete).toHaveBeenCalledWith('refresh_token')
     expect(redirectMock).toHaveBeenCalledWith('/login')
   })
 
@@ -64,6 +65,7 @@ describe('logoutAction', () => {
     await expect(logoutAction()).rejects.toThrow('NEXT_REDIRECT')
 
     expect(cookiesMock.delete).toHaveBeenCalledWith('access_token')
+    expect(cookiesMock.delete).toHaveBeenCalledWith('refresh_token')
     expect(redirectMock).toHaveBeenCalledWith('/login')
   })
 })

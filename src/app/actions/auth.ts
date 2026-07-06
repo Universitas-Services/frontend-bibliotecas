@@ -8,11 +8,12 @@ import { getHomePathForRole, getRoleFromToken } from '@/lib/auth'
 import {
   ACCESS_TOKEN_COOKIE,
   buildAccessTokenCookieOptions,
+  buildMustChangePasswordCookieOptions,
   MUST_CHANGE_PASSWORD_COOKIE,
+  REFRESH_TOKEN_COOKIE,
 } from '@/lib/auth-cookies'
 import { validateNewPassword, validatePasswordConfirmation } from '@/lib/password-validation'
 import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
-import { isValidRedirectForRole } from '@/lib/route-guards'
 
 function setAccessTokenCookie(cookieStore: Awaited<ReturnType<typeof cookies>>, token: string) {
   cookieStore.set(ACCESS_TOKEN_COOKIE, token, buildAccessTokenCookieOptions(token))
@@ -23,13 +24,7 @@ function setMustChangePasswordCookie(
   active: boolean,
 ) {
   if (active) {
-    cookieStore.set(MUST_CHANGE_PASSWORD_COOKIE, '1', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 30,
-    })
+    cookieStore.set(MUST_CHANGE_PASSWORD_COOKIE, '1', buildMustChangePasswordCookieOptions())
     return
   }
 
@@ -38,6 +33,7 @@ function setMustChangePasswordCookie(
 
 function clearAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   cookieStore.delete(ACCESS_TOKEN_COOKIE)
+  cookieStore.delete(REFRESH_TOKEN_COOKIE)
   cookieStore.delete(MUST_CHANGE_PASSWORD_COOKIE)
 }
 
@@ -58,17 +54,11 @@ function mapChangePasswordError(status: number, data: Record<string, unknown>): 
   }
 }
 
-export type LoginState = {
-  error: string | null
-  redirectTo?: string
-}
-
 export type ChangePasswordState = {
   success?: boolean
   error?: string
   message?: string
   sessionExpired?: boolean
-  redirectTo?: string
 }
 
 export type ForgotPasswordState = {
@@ -98,71 +88,6 @@ function mapResetPasswordError(status: number, data: Record<string, unknown>): s
       return 'La nueva contraseña no cumple los requisitos de seguridad.'
     default:
       return message || 'No se pudo restablecer la contraseña. Intente nuevamente.'
-  }
-}
-
-export async function loginAction(
-  _prevState: LoginState | null,
-  formData: FormData,
-): Promise<LoginState> {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const redirectTo = formData.get('redirect') as string | null
-
-  if (!email || !password) {
-    return { error: USER_MSG.validation.loginCredentials }
-  }
-
-  try {
-    const res = await fetch(`${getApiBaseUrl()}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      return {
-        error: toUserFacingMessage(
-          typeof data.message === 'string' ? data.message : undefined,
-          USER_MSG.error.login,
-        ),
-      }
-    }
-
-    const token = data.access_token
-    const mustChangePassword = data.mustChangePassword === true
-
-    if (!token) {
-      return { error: 'No recibimos confirmación de acceso. Intente iniciar sesión nuevamente.' }
-    }
-
-    const role = getRoleFromToken(token)
-
-    const cookieStore = await cookies()
-    setAccessTokenCookie(cookieStore, token)
-    setMustChangePasswordCookie(cookieStore, mustChangePassword)
-
-    if (!role) {
-      console.warn('No se encontró el rol en el token')
-      return { error: 'No pudimos identificar su rol de usuario. Contacte al administrador.' }
-    }
-
-    if (mustChangePassword) {
-      return { error: null, redirectTo: '/auth/change-password' }
-    }
-
-    if (redirectTo && isValidRedirectForRole(redirectTo, role)) {
-      return { error: null, redirectTo }
-    }
-
-    return { error: null, redirectTo: getHomePathForRole(role) }
-  } catch (error) {
-    console.error('Login error:', error)
-    return { error: 'Ocurrió un error al intentar iniciar sesión. Revise su conexión.' }
   }
 }
 
@@ -265,7 +190,7 @@ export async function changePasswordAction(
     setMustChangePasswordCookie(cookieStore, false)
 
     if (isFirstLogin) {
-      return { error: undefined, redirectTo: getHomePathForRole(role) }
+      redirect(getHomePathForRole(role))
     }
 
     return {
@@ -274,6 +199,10 @@ export async function changePasswordAction(
         typeof data.message === 'string' ? data.message : 'Contraseña actualizada exitosamente.',
     }
   } catch (error) {
+    if ((error as Error).message === 'NEXT_REDIRECT') {
+      throw error
+    }
+
     console.error('Change password error:', error)
     return { error: 'Ocurrió un error al actualizar la contraseña. Revise su conexión.' }
   }

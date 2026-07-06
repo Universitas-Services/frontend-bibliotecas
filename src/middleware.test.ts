@@ -10,7 +10,7 @@ function createTestJwt(payload: Record<string, unknown>): string {
 }
 
 describe('middleware', () => {
-  it('redirects expired token on protected routes to login and clears cookie', () => {
+  it('redirects expired token on protected routes to login and clears cookie', async () => {
     const expired = createTestJwt({
       role: 'CURADOR',
       exp: Math.floor(Date.now() / 1000) - 60,
@@ -19,7 +19,7 @@ describe('middleware', () => {
       headers: { cookie: `access_token=${expired}` },
     })
 
-    const response = middleware(request)
+    const response = await middleware(request)
 
     expect(response?.status).toBe(307)
     expect(response?.headers.get('location')).toContain('/login')
@@ -28,7 +28,7 @@ describe('middleware', () => {
     expect(response?.cookies.get('access_token')?.value).toBe('')
   })
 
-  it('does not redirect valid token on protected routes', () => {
+  it('does not redirect valid token on protected routes', async () => {
     const valid = createTestJwt({
       role: 'CURADOR',
       exp: Math.floor(Date.now() / 1000) + 3600,
@@ -37,7 +37,7 @@ describe('middleware', () => {
       headers: { cookie: `access_token=${valid}` },
     })
 
-    const response = middleware(request)
+    const response = await middleware(request)
 
     expect(response?.status).toBe(200)
   })

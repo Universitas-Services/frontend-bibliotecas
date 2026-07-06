@@ -2,6 +2,7 @@ export type UserRole = 'ADMIN' | 'CURADOR' | 'REVISOR' | 'AUDITOR'
 
 export const ACCESS_TOKEN_COOKIE = 'access_token'
 export const DEFAULT_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
+export const MIN_COOKIE_MAX_AGE_SECONDS = 60
 
 /** Decodifica segmento JWT base64url (compatible Edge + Node). */
 export function decodeBase64Url(segment: string): string {
@@ -45,8 +46,9 @@ export function getCookieMaxAgeFromToken(
   if (!exp) return fallbackSeconds
 
   const remaining = exp - Math.floor(Date.now() / 1000)
-  if (remaining <= 0) return 0
-  return Math.min(remaining, fallbackSeconds)
+  if (remaining <= 0) return fallbackSeconds
+
+  return Math.max(MIN_COOKIE_MAX_AGE_SECONDS, Math.min(remaining, fallbackSeconds))
 }
 
 export function isTokenExpired(token: string): boolean {
