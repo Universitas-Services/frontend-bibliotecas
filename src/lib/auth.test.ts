@@ -57,6 +57,22 @@ describe('auth', () => {
     expect(maxAge).toBeLessThanOrEqual(120)
   })
 
+  it('uses fallback when JWT exp is already past', () => {
+    const token = createTestJwt({
+      role: 'CURADOR',
+      exp: Math.floor(Date.now() / 1000) - 10,
+    })
+    expect(getCookieMaxAgeFromToken(token)).toBe(60 * 60 * 24 * 7)
+  })
+
+  it('enforces a minimum cookie maxAge for valid tokens', () => {
+    const token = createTestJwt({
+      role: 'CURADOR',
+      exp: Math.floor(Date.now() / 1000) + 5,
+    })
+    expect(getCookieMaxAgeFromToken(token)).toBeGreaterThanOrEqual(60)
+  })
+
   it('extracts role from token', () => {
     const token = createTestJwt({ role: 'curador' })
     expect(getRoleFromToken(token)).toBe('CURADOR')

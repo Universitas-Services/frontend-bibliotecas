@@ -1,18 +1,14 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useFormStatus } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { loginAction, type LoginState } from '@/app/actions/auth'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { toastError } from '@/lib/toast-messages'
 import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
-
-const initialState: LoginState = {
-  error: null,
-}
 
 const AUTH_REASON_MESSAGES: Record<string, string> = {
   missing: 'No se detectó una sesión activa.',
@@ -21,12 +17,27 @@ const AUTH_REASON_MESSAGES: Record<string, string> = {
   profile: 'No se pudo verificar su perfil con el servidor.',
 }
 
+function LoginSubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button
+      type="submit"
+      disabled={pending}
+      className="mt-4 flex h-12 w-full items-center justify-center gap-2 bg-[#005496] text-white transition-colors hover:bg-[#003D6F]"
+    >
+      {pending ? 'INICIANDO SESIÓN...' : 'INICIAR SESIÓN'}
+      {!pending && <ArrowRight className="h-5 w-5" />}
+    </Button>
+  )
+}
+
 export function LoginForm() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
   const authReason = searchParams.get('authReason')
+  const loginError = searchParams.get('loginError')
   const isLogout = searchParams.get('logout') === '1'
-  const [state, formAction, isPending] = useActionState(loginAction, initialState)
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
@@ -35,15 +46,9 @@ export function LoginForm() {
   }, [])
 
   useEffect(() => {
-    if (state?.error) {
-      toastError(USER_MSG.error.login, toUserFacingMessage(state.error))
-    }
-  }, [state?.error])
-
-  useEffect(() => {
-    if (!state?.redirectTo) return
-    window.location.assign(state.redirectTo)
-  }, [state?.redirectTo])
+    if (!loginError) return
+    toastError(USER_MSG.error.login, toUserFacingMessage(loginError))
+  }, [loginError])
 
   const sessionNotice =
     authReason && AUTH_REASON_MESSAGES[authReason]
@@ -85,7 +90,7 @@ export function LoginForm() {
           ) : null}
         </div>
 
-        <form action={formAction} className="space-y-6">
+        <form method="POST" action="/api/auth/login" className="space-y-6">
           {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
           <div className="space-y-2">
             <label
@@ -143,14 +148,7 @@ export function LoginForm() {
             </div>
           </div>
 
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="mt-4 flex h-12 w-full items-center justify-center gap-2 bg-[#005496] text-white transition-colors hover:bg-[#003D6F]"
-          >
-            {isPending ? 'INICIANDO SESIÓN...' : 'INICIAR SESIÓN'}
-            {!isPending && <ArrowRight className="h-5 w-5" />}
-          </Button>
+          <LoginSubmitButton />
 
           <div className="mt-6 space-y-2 text-center">
             <Link
