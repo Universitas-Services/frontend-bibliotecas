@@ -89,7 +89,12 @@ export async function POST(request: Request) {
     }
 
     const newToken = typeof data.access_token === 'string' ? data.access_token : null
-    const newRefreshToken = typeof data.refresh_token === 'string' ? data.refresh_token : null
+    const newRefreshToken =
+      typeof data.refresh_token === 'string'
+        ? data.refresh_token
+        : typeof data.refreshToken === 'string'
+          ? data.refreshToken
+          : null
 
     if (!newToken || isTokenExpired(newToken)) {
       return NextResponse.redirect(

@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from '@/lib/api'
-import { getHomePathForRole, getRoleFromToken, isTokenExpired } from '@/lib/auth'
+import { getApiErrorMessage } from '@/lib/api-client'
+import { getHomePathForRole, getRoleFromToken, isTokenExpired, decodeJwt } from '@/lib/auth'
 import { isValidRedirectForRole } from '@/lib/route-guards'
 import { toUserFacingMessage, USER_MSG } from '@/lib/user-messages'
 
@@ -19,7 +20,28 @@ export type AuthenticateLoginResult =
       mustChangePassword: boolean
       redirectTo: string
     }
-  | { ok: false; error: string }
+  | { ok: false; error: string; status?: number }
+
+function readAuthTokens(data: Record<string, unknown>): {
+  accessToken: string
+  refreshToken: string | null
+} {
+  const accessToken =
+    typeof data.access_token === 'string'
+      ? data.access_token
+      : typeof data.accessToken === 'string'
+        ? data.accessToken
+        : ''
+
+  const refreshToken =
+    typeof data.refresh_token === 'string'
+      ? data.refresh_token
+      : typeof data.refreshToken === 'string'
+        ? data.refreshToken
+        : null
+
+  return { accessToken, refreshToken }
+}
 
 export async function authenticateLogin(
   input: AuthenticateLoginInput,
@@ -43,17 +65,21 @@ export async function authenticateLogin(
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
 
     if (!res.ok) {
+      const backendMessage = getApiErrorMessage(data, USER_MSG.error.login)
+      console.error('[auth/login] backend rejected credentials', {
+        status: res.status,
+        apiBaseUrl: getApiBaseUrl(),
+        message: backendMessage,
+        raw: data,
+      })
       return {
         ok: false,
-        error: toUserFacingMessage(
-          typeof data.message === 'string' ? data.message : undefined,
-          USER_MSG.error.login,
-        ),
+        status: res.status,
+        error: toUserFacingMessage(backendMessage, USER_MSG.error.login),
       }
     }
 
-    const accessToken = typeof data.access_token === 'string' ? data.access_token : ''
-    const refreshToken = typeof data.refresh_token === 'string' ? data.refresh_token : null
+    const { accessToken, refreshToken } = readAuthTokens(data)
     const mustChangePassword = data.mustChangePassword === true
 
     if (!accessToken) {
@@ -73,10 +99,23 @@ export async function authenticateLogin(
 
     const role = getRoleFromToken(accessToken)
     if (!role) {
+      console.error('[auth/login] token without recognizable role', {
+        apiBaseUrl: getApiBaseUrl(),
+        payloadKeys: Object.keys(decodeJwt(accessToken) ?? {}),
+      })
       return {
         ok: false,
         error: 'No pudimos identificar su rol de usuario. Contacte al administrador.',
       }
+    }
+
+    if (!mustChangePassword && !refreshToken) {
+      console.warn(
+        '[auth/login] login OK but refresh_token missing (backend refresh not active?)',
+        {
+          apiBaseUrl: getApiBaseUrl(),
+        },
+      )
     }
 
     let redirectTo: string
@@ -90,7 +129,10 @@ export async function authenticateLogin(
 
     return { ok: true, accessToken, refreshToken, mustChangePassword, redirectTo }
   } catch (error) {
-    console.error('Login error:', error)
+    console.error('[auth/login] network or unexpected error', {
+      apiBaseUrl: getApiBaseUrl(),
+      error,
+    })
     return { ok: false, error: 'Ocurrió un error al intentar iniciar sesión. Revise su conexión.' }
   }
 }
