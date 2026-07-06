@@ -71,8 +71,18 @@ async function tryRefreshInMiddleware(
     if (!res.ok) return null
 
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
-    const accessToken = typeof data.access_token === 'string' ? data.access_token : ''
-    const newRefreshToken = typeof data.refresh_token === 'string' ? data.refresh_token : ''
+    const accessToken =
+      typeof data.access_token === 'string'
+        ? data.access_token
+        : typeof data.accessToken === 'string'
+          ? data.accessToken
+          : ''
+    const newRefreshToken =
+      typeof data.refresh_token === 'string'
+        ? data.refresh_token
+        : typeof data.refreshToken === 'string'
+          ? data.refreshToken
+          : ''
 
     if (!accessToken || !newRefreshToken) return null
     if (isTokenExpired(accessToken) || isTokenExpired(newRefreshToken)) return null
